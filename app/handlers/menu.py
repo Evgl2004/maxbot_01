@@ -316,7 +316,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     """
     bot = event.bot
 
-    if not event.message.text:
+    if not event.message.body.text:                           # <-- исправлено
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, введите вопрос текстовым сообщением."
@@ -331,7 +331,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
 
     ticket = await ticket_service.create_ticket(
         user_id=event.sender.user_id,
-        message=event.message.text,
+        message=event.message.body.text,                      # <-- исправлено
         user_username=event.sender.name,
         user_first_name=event.sender.first_name or user.first_name_input
     )
@@ -352,7 +352,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
             f"📬 *Новый тикет от пользователя!*\n\n"
             f"🎫 Тикет #{ticket.id}\n"
             f"👤 Пользователь: {event.sender.name or event.sender.first_name}\n"
-            f"❓ Вопрос: {event.message.text[:100]}{'...' if len(event.message.text) > 100 else ''}\n\n"
+            f"❓ Вопрос: {event.message.body.text[:100]}{'...' if len(event.message.body.text) > 100 else ''}\n\n"
             f"📊 *Статистика:*\n"
             f"📬 Новые тикеты: {open_count}\n"
             f"🔄 В работе: {in_progress_count}\n"

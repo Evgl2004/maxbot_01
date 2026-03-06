@@ -186,7 +186,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
     """
     bot = event.bot
 
-    if not event.message.text:
+    if not event.message.body.text:                           # <-- исправлено
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте текстовое сообщение."
@@ -210,7 +210,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         ticket_id=ticket_id,
         sender_type="user",
         sender_id=event.sender.user_id,
-        message=event.message.text
+        message=event.message.body.text                       # <-- исправлено
     )
 
     # Если тикет был открыт, переводим его в статус "в работе"
@@ -218,7 +218,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         await ticket_service.update_ticket_status(ticket_id, 'in_progress')
 
     # Уведомляем модераторов о новом сообщении
-    await _notify_moderators_new_message(bot, ticket, event.message.text)
+    await _notify_moderators_new_message(bot, ticket, event.message.body.text)  # <-- исправлено
 
     # Получаем обновлённую историю и показываем карточку
     messages = await ticket_service.get_ticket_messages(ticket_id)
