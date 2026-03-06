@@ -152,7 +152,7 @@ async def start_legacy_upgrade(message: MessageCreated, user):
         message (MessageCreated): событие, инициировавшее старт
         user: объект пользователя из БД
     """
-    logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.id} (is_legacy={user.is_legacy})")
+    logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.user_id} (is_legacy={user.is_legacy})")
     bot = message.bot
 
     # Приветственное сообщение
@@ -189,7 +189,7 @@ async def process_rules_accept(event: MessageCallback, data: dict) -> None:
         logger.error("Контекст не найден")
         return
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     logger.info(f"Legacy пользователь {user_id} принял правила")
 
     await db.update_user(
@@ -298,7 +298,7 @@ async def process_gender_input(event: MessageCallback, data: dict) -> None:
     if not context:
         return
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     data_from_context = await context.get_data()
     missing_fields = data_from_context.get('missing_fields', [])
     if not missing_fields or missing_fields[0] != 'gender':
@@ -486,7 +486,7 @@ async def process_edit_gender(event: MessageCallback, data: dict) -> None:
     if not context:
         return
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     gender = "male" if event.callback.payload == "gender_male" else "female"
     await db.update_user(user_id, gender=gender)
 
@@ -508,7 +508,7 @@ async def process_notifications_consent(event: MessageCallback, data: dict) -> N
     if not context:
         return
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     notifications_allowed = (event.callback.payload == "notify_yes")
     choice_text = "согласился на уведомления" if notifications_allowed else "отказался от уведомлений"
     logger.info(f"Legacy user {user_id} {choice_text}")
@@ -550,7 +550,7 @@ async def retry_iiko_registration(event: MessageCallback, data: dict) -> None:
         return
 
     await event.answer("")
-    user = await db.get_user(event.user.id)
+    user = await db.get_user(event.user.user_id)
     if not user:
         await event.message.answer(text="❌ Ошибка загрузки пользователя")
         await context.clear()

@@ -71,7 +71,7 @@ async def start_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
     """
-    if not is_admin(event.user.id):
+    if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -131,7 +131,7 @@ async def add_button_to_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
     """
-    if not is_admin(event.user.id):
+    if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -228,7 +228,7 @@ async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
     """
     Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
     """
-    if not is_admin(event.user.id):
+    if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -256,7 +256,7 @@ async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Запуск рассылки.
     """
-    if not is_admin(event.user.id):
+    if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
         return
 
