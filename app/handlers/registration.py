@@ -52,7 +52,7 @@ router = Router()
 # ----------------------------------------------------------------------
 # 1. Обработчик нажатия на кнопку «Согласен» (принятие правил)
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_rules_consent)
+@router.message_callback(Registration.waiting_for_rules_consent)
 async def process_rules_accept(event: MessageCallback, data: dict) -> None:
     """
     ✅ Обработчик нажатия кнопки «Согласен» после прочтения правил.
@@ -195,8 +195,7 @@ async def process_contact(event: MessageCreated, data: dict) -> None:
     # Подтверждаем получение и переходим к следующему шагу
     await event.message.answer(
         text="✅ Спасибо! Номер телефона сохранён.\n\n"
-             "✍️ Теперь, пожалуйста, напишите ваше имя.",
-        reply_markup=None  # убираем клавиатуру, если она была
+             "✍️ Теперь, пожалуйста, напишите ваше имя."
     )
     await context.set_state(Registration.waiting_for_first_name)
 
@@ -297,7 +296,7 @@ async def process_last_name(event: MessageCreated, data: dict) -> None:
 # ----------------------------------------------------------------------
 # 5. Обработчик выбора пола (callback)
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_gender)
+@router.message_callback(Registration.waiting_for_gender)
 async def process_gender(event: MessageCallback, data: dict) -> None:
     """
     ⚥ Обработчик выбора пола.
@@ -430,7 +429,7 @@ async def process_email(event: MessageCreated, data: dict) -> None:
 # ----------------------------------------------------------------------
 # 8. Обработчики ревью анкеты (кнопки «Всё верно» / «Изменить»)
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_review)
+@router.message_callback(Registration.waiting_for_review)
 async def process_review(event: MessageCallback, data: dict) -> None:
     """
     📋 Обработчик нажатия кнопок на этапе подтверждения анкеты.
@@ -476,7 +475,7 @@ async def process_review(event: MessageCallback, data: dict) -> None:
 # ----------------------------------------------------------------------
 # 9. Обработчик выбора поля для редактирования (меню)
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_edit_choice)
+@router.message_callback(Registration.waiting_for_edit_choice)
 async def process_edit_choice(event: MessageCallback, data: dict) -> None:
     """
     🔧 Обработчик выбора конкретного поля для редактирования.
@@ -581,7 +580,7 @@ async def process_edit_last_name(event: MessageCreated, data: dict) -> None:
     await show_profile_review(event, context, target_state=Registration.waiting_for_review)
 
 
-@router.callback(Registration.waiting_for_edit_gender)
+@router.message_callback(Registration.waiting_for_edit_gender)
 async def process_edit_gender(event: MessageCallback, data: dict) -> None:
     """
     ✏️ Обработчик редактирования пола (callback).
@@ -653,7 +652,7 @@ async def process_edit_email(event: MessageCreated, data: dict) -> None:
 # ----------------------------------------------------------------------
 # 11. Обработчик согласия на уведомления
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_notifications_consent)
+@router.message_callback(Registration.waiting_for_notifications_consent)
 async def process_notifications_consent(event: MessageCallback, data: dict) -> None:
     """
     🔔 Обработчик выбора пользователя по согласию на уведомления.
@@ -709,7 +708,7 @@ async def process_notifications_consent(event: MessageCallback, data: dict) -> N
 # ----------------------------------------------------------------------
 # 12. Обработчик повторной попытки регистрации в iiko (кнопка retry)
 # ----------------------------------------------------------------------
-@router.callback(Registration.waiting_for_iiko_registration)
+@router.message_callback(Registration.waiting_for_iiko_registration)
 async def retry_iiko_registration(event: MessageCallback, data: dict) -> None:
     """
     🔄 Повторная попытка синхронизации с iiko при ошибке.

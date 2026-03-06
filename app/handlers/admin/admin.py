@@ -66,7 +66,7 @@ async def admin_command(event: MessageCreated) -> None:
 
 
 # ---------- Начало создания рассылки ----------
-@router.callback(Command('admin_broadcast'))
+@router.message_callback(Command('admin_broadcast'))
 async def start_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
@@ -126,7 +126,7 @@ async def receive_broadcast_message(event: MessageCreated, data: dict) -> None:
 
 
 # ---------- Добавление кнопки ----------
-@router.callback(Command('broadcast_add_button'))
+@router.message_callback(Command('broadcast_add_button'))
 async def add_button_to_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
@@ -223,7 +223,7 @@ async def receive_broadcast_button(event: MessageCreated, data: dict) -> None:
 
 
 # ---------- Рассылка без кнопки ----------
-@router.callback(Command('broadcast_no_button'))
+@router.message_callback(Command('broadcast_no_button'))
 async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
     """
     Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
@@ -251,7 +251,7 @@ async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Подтверждение рассылки ----------
-@router.callback(Command('broadcast_confirm_yes'))
+@router.message_callback(Command('broadcast_confirm_yes'))
 async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Запуск рассылки.
@@ -275,7 +275,7 @@ async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
     await context.clear()
 
 
-@router.callback(Command('broadcast_confirm_no'))
+@router.message_callback(Command('broadcast_confirm_no'))
 async def cancel_broadcast(event: MessageCallback, data: dict) -> None:
     """
     Отмена рассылки.
@@ -287,7 +287,7 @@ async def cancel_broadcast(event: MessageCallback, data: dict) -> None:
     await event.message.edit_text(text="❌ Рассылка отменена", attachments=[])
 
 
-@router.callback(Command('broadcast_cancel'))
+@router.message_callback(Command('broadcast_cancel'))
 async def cancel_broadcast_creation(event: MessageCallback, data: dict) -> None:
     """
     Отмена создания рассылки на любом этапе.

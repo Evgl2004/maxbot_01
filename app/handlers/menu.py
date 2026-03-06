@@ -58,7 +58,7 @@ async def show_main_menu(chat_id: int, bot, user_name: str = "Гость") -> No
 
 
 # ---------- Обработчики пунктов главного меню ----------
-@router.callback(Command('balance'))
+@router.message_callback(Command('balance'))
 async def process_balance(event: MessageCallback) -> None:
     """
     Показывает информацию о балансе бонусов из iiko.
@@ -105,7 +105,7 @@ async def process_balance(event: MessageCallback) -> None:
     )
 
 
-@router.callback(Command('virtual_card'))
+@router.message_callback(Command('virtual_card'))
 async def process_virtual_card(event: MessageCallback) -> None:
     """
     Показывает все карты пользователя из iiko с QR-кодами.
@@ -219,7 +219,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     )
 
 
-@router.callback(Command('support'))
+@router.message_callback(Command('support'))
 async def process_support(event: MessageCallback) -> None:
     """
     Показывает вложенное меню отдела заботы с учётом наличия тикетов у пользователя.
@@ -239,7 +239,7 @@ async def process_support(event: MessageCallback) -> None:
     )
 
 
-@router.callback(Command('vacancies'))
+@router.message_callback(Command('vacancies'))
 async def process_vacancies(event: MessageCallback) -> None:
     """
     Показывает информацию о вакансиях и ссылку.
@@ -269,7 +269,7 @@ async def process_vacancies(event: MessageCallback) -> None:
 
 
 # ---------- Обработчики подменю отдела заботы ----------
-@router.callback(Command('support_feedback'))
+@router.message_callback(Command('support_feedback'))
 async def process_feedback(event: MessageCallback) -> None:
     """
     Отправляет ссылку на внешний сервис отзывов.
@@ -289,7 +289,7 @@ async def process_feedback(event: MessageCallback) -> None:
     )
 
 
-@router.callback(Command('support_question'))
+@router.message_callback(Command('support_question'))
 async def process_question(event: MessageCallback, data: dict) -> None:
     """
     Обработчик функции 'Мне только спросить' – начало создания тикета.
@@ -385,7 +385,7 @@ async def process_question_text(event: MessageCreated, data: dict) -> None:
     await context.clear()
 
 
-@router.callback(Command('support_contacts'))
+@router.message_callback(Command('support_contacts'))
 async def process_contacts(event: MessageCallback) -> None:
     """
     Показывает контактную информацию.
@@ -407,7 +407,7 @@ async def process_contacts(event: MessageCallback) -> None:
 
 
 # ---------- Навигационные кнопки ----------
-@router.callback(Command('back_to_main'))
+@router.message_callback(Command('back_to_main'))
 async def process_back_to_main(event: MessageCallback, data: dict) -> None:
     """
     Возврат в главное меню.
@@ -435,7 +435,7 @@ async def process_back_to_main(event: MessageCallback, data: dict) -> None:
     )
 
 
-@router.callback(Command('back_to_support'))
+@router.message_callback(Command('back_to_support'))
 async def process_back_to_support(event: MessageCallback, data: dict) -> None:
     """
     Возврат во вложенное меню отдела заботы.
