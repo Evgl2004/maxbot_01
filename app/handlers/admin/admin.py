@@ -36,7 +36,7 @@ async def admin_command(event: MessageCreated) -> None:
     """
     Обработчик команды /admin. Показывает статистику и меню администратора.
     """
-    if not is_admin(event.sender.id):
+    if not is_admin(event.sender.user_id):
         await event.message.answer(text="❌ У вас нет прав администратора")
         return
 
@@ -103,7 +103,7 @@ async def receive_broadcast_message(event: MessageCreated, data: dict) -> None:
     if not context:
         return
 
-    if not is_admin(event.sender.id):
+    if not is_admin(event.sender.user_id):
         await context.clear()
         return
 
@@ -164,7 +164,7 @@ async def receive_broadcast_button(event: MessageCreated, data: dict) -> None:
     if not context:
         return
 
-    if not is_admin(event.sender.id):
+    if not is_admin(event.sender.user_id):
         await context.clear()
         return
 
@@ -305,7 +305,7 @@ async def cancel_any_state(event: MessageCreated, data: dict) -> None:
     """
     Отмена любого текущего состояния (если есть).
     """
-    if not is_admin(event.sender.id):
+    if not is_admin(event.sender.user_id):
         return
 
     context: MemoryContext = data.get('context')

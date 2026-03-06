@@ -335,14 +335,14 @@ async def process_question_text(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user = await db.get_user(event.sender.id)
+    user = await db.get_user(event.sender.user_id)
     if not user:
         await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка: пользователь не найден")
         await context.clear()
         return
 
     ticket = await ticket_service.create_ticket(
-        user_id=event.sender.id,
+        user_id=event.sender.user_id,
         message=event.message.text,
         user_username=event.sender.name,          # в MAX это поле может содержать username
         user_first_name=event.sender.first_name or user.first_name_input
