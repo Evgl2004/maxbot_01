@@ -199,7 +199,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
     """
     Обрабатывает текстовый ввод для имени, фамилии, даты рождения или email.
     """
-    if not event.message.text:
+    if not event.message.body.text:                          # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите значение текстовым сообщением."
         )
@@ -213,7 +213,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
         return
 
     field = missing_fields[0]
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()                   # <-- исправлено
     bot = event.bot
 
     if field == 'first_name':
@@ -375,7 +375,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     """
     Обрабатывает текстовый ввод нового значения для редактируемого поля.
     """
-    if not event.message.text:
+    if not event.message.body.text:                          # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите значение текстовым сообщением."
         )
@@ -384,7 +384,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     user_id = event.sender.user_id
     context_data = await context.get_data()
     field = context_data.get('edit_field')
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()                   # <-- исправлено
     bot = event.bot
 
     if field == 'edit_first_name':

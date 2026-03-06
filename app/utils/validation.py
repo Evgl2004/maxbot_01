@@ -4,7 +4,7 @@ import re
 from datetime import datetime, date
 from typing import Tuple
 
-from maxapi.types import Message
+from maxapi.types import MessageCreated
 
 
 async def validate_first_name(value: str) -> Tuple[bool, str]:
@@ -74,12 +74,12 @@ async def clean_name(value: str) -> str:
     return re.sub(r'\s+', ' ', value).strip()
 
 
-async def confirm_text(message: Message, bot, error_text: str = "✍️ Пожалуйста, отправьте текстовое сообщение.") -> bool:
+async def confirm_text(message: MessageCreated, error_text: str = "✍️ Пожалуйста, отправьте текстовое сообщение.") -> bool:
     """
     Проверяет, содержит ли сообщение текст.
-    Если нет – отправляет пользователю сообщение об ошибке через bot и возвращает False.
+    Если нет – отправляет пользователю сообщение об ошибке и возвращает False.
     """
-    if not message.text:
-        await bot.send_message(chat_id=message.chat.id, text=error_text)
+    if not message.body.text:                                   # <-- исправлено
+        await message.answer(text=error_text)                    # <-- отправляем через message.answer
         return False
     return True

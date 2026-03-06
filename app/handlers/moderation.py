@@ -333,7 +333,7 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
 async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     bot = event.bot
 
-    if not event.message.text:
+    if not event.message.body.text:                              # <-- исправлено
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте ответ текстовым сообщением."
@@ -361,7 +361,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
         ticket_id=ticket_id,
         sender_type="moderator",
         sender_id=event.sender.user_id,
-        message=event.message.text
+        message=event.message.body.text                         # <-- исправлено
     )
 
     await ticket_service.update_ticket_status(ticket_id, "in_progress")
@@ -372,7 +372,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
             text=(
                 f"📬 <b>Ответ на ваш вопрос</b> (тикет #{ticket_id})\n\n"
                 f"📝 <b>Ответ от модератора:</b>\n"
-                f"{html.escape(event.message.text)}"
+                f"{html.escape(event.message.body.text)}"       # <-- исправлено
             ),
             attachments=[UserTicketsKeyboard.notification_keyboard(ticket_id, ticket.status)]
         )

@@ -9,7 +9,7 @@ from loguru import logger
 from datetime import datetime
 
 from maxapi import Router
-from maxapi.types import Command, MessageCreated  # Command импортируется отсюда
+from maxapi.types import Command, MessageCreated
 
 from app.config import settings
 

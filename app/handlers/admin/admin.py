@@ -151,7 +151,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
         return
 
     bot = event.bot
-    if not event.message.text:
+    if not event.message.body.text:                           # <-- исправлено
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте текстовое сообщение."
@@ -159,7 +159,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
         return
 
     button_pattern = r"^(.+?)\s*\|\s*(https?://.+)$"
-    match = re.match(button_pattern, event.message.text.strip())
+    match = re.match(button_pattern, event.message.body.text.strip())  # <-- исправлено
 
     if not match:
         await bot.send_message(
