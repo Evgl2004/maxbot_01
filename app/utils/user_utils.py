@@ -25,7 +25,7 @@ def with_user_save(handler):
             try:
                 await db.add_user(
                     user_id=user.id,
-                    username=user.username,
+                    username=user.name,
                     first_name=user.first_name,
                     last_name=user.last_name
                 )
