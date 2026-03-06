@@ -13,7 +13,7 @@ from .help import router as help_router
 from .registration import router as registration_router
 from .menu import router as menu_router
 from .legacy import router as legacy_router
-from .admin import combined_router as admin_router
+from .admin import router as admin_router
 from .moderation import router as moderation_router
 from app.handlers import user_tickets
 
