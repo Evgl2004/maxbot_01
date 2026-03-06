@@ -52,16 +52,12 @@ async def get_missing_fields(user) -> List[str]:
     """
     missing = []
 
-    # Имя
     if not user.first_name_input or not re.fullmatch(r'^[a-zA-Zа-яА-ЯёЁ\s-]+$', user.first_name_input):
         missing.append('first_name')
-    # Фамилия
     if not user.last_name_input or not re.fullmatch(r'^[a-zA-Zа-яА-ЯёЁ\s-]+$', user.last_name_input):
         missing.append('last_name')
-    # Пол
     if user.gender not in ['male', 'female']:
         missing.append('gender')
-    # Дата рождения
     if not user.birth_date:
         missing.append('birth_date')
     else:
@@ -72,7 +68,6 @@ async def get_missing_fields(user) -> List[str]:
                )
         if age < 18 or age > 100:
             missing.append('birth_date')
-    # Email
     if not user.email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', user.email):
         missing.append('email')
     return missing
@@ -89,15 +84,13 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback], context:
         missing_fields: список недостающих полей
     """
     if not missing_fields:
-        # Все поля заполнены – показываем анкету
         await show_profile_review(event, context, target_state=LegacyUpgrade.waiting_for_review)
         return
 
-    # Сохраняем оставшиеся поля в контексте (чтобы потом поочерёдно обрабатывать)
     await context.update_data(missing_fields=missing_fields)
 
     field = missing_fields[0]
-    bot = event.bot  # у события есть доступ к боту
+    bot = event.bot
 
     if field == 'first_name':
         text = "✍️ Введите ваше имя:"
@@ -110,16 +103,13 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback], context:
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     elif field == 'gender':
-        # Для пола показываем клавиатуру с выбором
         if isinstance(event, MessageCallback):
-            # Если это callback – редактируем текущее сообщение
             await event.message.edit_text(
                 text="Выберите ваш пол:",
                 attachments=[get_gender_keyboard()]
             )
             await event.answer("")
         else:
-            # Если это сообщение – отправляем новое
             await event.message.answer(
                 text="Выберите ваш пол:",
                 attachments=[get_gender_keyboard()]
@@ -137,7 +127,6 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback], context:
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     else:
-        # Неизвестное поле – пропускаем
         missing_fields.pop(0)
         await ask_next_field(event, context, missing_fields)
 
@@ -155,7 +144,6 @@ async def start_legacy_upgrade(message: MessageCreated, user):
     logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.user_id} (is_legacy={user.is_legacy})")
     bot = message.bot
 
-    # Приветственное сообщение
     text = (
         "👋 Здравствуй, друг! Мы обновили бота и хотим убедиться, "
         "что твои данные актуальны, а также получить необходимые согласия. "
@@ -163,7 +151,6 @@ async def start_legacy_upgrade(message: MessageCreated, user):
     )
     await bot.send_message(chat_id=message.chat.id, text=text)
 
-    # Показываем правила
     await bot.send_message(
         chat_id=message.chat.id,
         text="📜 Для начала нам необходимо получить твоё согласие на обработку персональных данных "
@@ -176,17 +163,12 @@ async def start_legacy_upgrade(message: MessageCreated, user):
 
 # ---------- Обработчики состояний ----------
 @router.message_callback(LegacyUpgrade.waiting_for_rules_consent)
-async def process_rules_accept(event: MessageCallback, data: dict) -> None:
+async def process_rules_accept(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обработчик нажатия кнопки «Согласен» на правилах.
     Сохраняет согласие и запускает проверку недостающих полей.
     """
     if event.callback.payload != "accept_rules":
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
-        logger.error("Контекст не найден")
         return
 
     user_id = event.user.user_id
@@ -209,20 +191,14 @@ async def process_rules_accept(event: MessageCallback, data: dict) -> None:
     if missing:
         await ask_next_field(event, context, missing)
     else:
-        # Если все поля уже заполнены, сразу показываем анкету
         await show_profile_review(event, context, target_state=LegacyUpgrade.waiting_for_review)
 
 
-# ---------- Обработка ввода полей ----------
 @router.message_created(LegacyUpgrade.waiting_for_field)
-async def process_field_input(event: MessageCreated, data: dict) -> None:
+async def process_field_input(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает текстовый ввод для имени, фамилии, даты рождения или email.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     if not event.message.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите значение текстовым сообщением."
@@ -280,22 +256,16 @@ async def process_field_input(event: MessageCreated, data: dict) -> None:
         await ask_next_field(event, context, missing_fields)
 
     else:
-        # Неизвестное поле – пропускаем
         missing_fields.pop(0)
         await ask_next_field(event, context, missing_fields)
 
 
-# ---------- Обработка выбора пола (inline) ----------
 @router.message_callback(LegacyUpgrade.waiting_for_field)
-async def process_gender_input(event: MessageCallback, data: dict) -> None:
+async def process_gender_input(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обрабатывает нажатие на кнопки выбора пола (мужской/женский) в состоянии ожидания поля.
     """
     if event.callback.payload not in ["gender_male", "gender_female"]:
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     user_id = event.user.user_id
@@ -313,17 +283,12 @@ async def process_gender_input(event: MessageCallback, data: dict) -> None:
     await ask_next_field(event, context, missing_fields)
 
 
-# ---------- Подтверждение анкеты ----------
 @router.message_callback(LegacyUpgrade.waiting_for_review)
-async def process_review_correct(event: MessageCallback, data: dict) -> None:
+async def process_review_correct(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь подтвердил, что данные верны. Переходим к согласию на уведомления.
     """
     if event.callback.payload != "review_correct":
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     await event.answer("")
@@ -341,15 +306,11 @@ async def process_review_correct(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_callback(LegacyUpgrade.waiting_for_review)
-async def process_review_edit(event: MessageCallback, data: dict) -> None:
+async def process_review_edit(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь хочет что-то изменить. Показываем меню выбора поля для редактирования.
     """
     if event.callback.payload != "review_edit":
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     await event.answer("")
@@ -361,18 +322,13 @@ async def process_review_edit(event: MessageCallback, data: dict) -> None:
     await context.set_state(LegacyUpgrade.waiting_for_edit_choice)
 
 
-# ---------- Редактирование ----------
 @router.message_callback(LegacyUpgrade.waiting_for_edit_choice)
-async def process_edit_choice(event: MessageCallback, data: dict) -> None:
+async def process_edit_choice(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обрабатывает выбор пользователя в меню редактирования.
     Сохраняет выбранное поле в контексте и переводит в состояние ожидания ввода нового значения.
     Для поля 'пол' сразу показывает клавиатуру выбора.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     payload = event.callback.payload
     await event.answer("")
 
@@ -380,7 +336,6 @@ async def process_edit_choice(event: MessageCallback, data: dict) -> None:
         await show_profile_review(event, context, target_state=LegacyUpgrade.waiting_for_review)
         return
 
-    # Сохраняем выбранное поле в контексте
     await context.update_data(edit_field=payload)
 
     if payload == "edit_first_name":
@@ -416,14 +371,10 @@ async def process_edit_choice(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_created(LegacyUpgrade.waiting_for_edit_field)
-async def process_edit_field(event: MessageCreated, data: dict) -> None:
+async def process_edit_field(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает текстовый ввод нового значения для редактируемого поля.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     if not event.message.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите значение текстовым сообщением."
@@ -475,15 +426,11 @@ async def process_edit_field(event: MessageCreated, data: dict) -> None:
 
 
 @router.message_callback(LegacyUpgrade.waiting_for_edit_field)
-async def process_edit_gender(event: MessageCallback, data: dict) -> None:
+async def process_edit_gender(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обрабатывает выбор нового пола при редактировании.
     """
     if event.callback.payload not in ["gender_male", "gender_female"]:
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     user_id = event.user.user_id
@@ -494,18 +441,13 @@ async def process_edit_gender(event: MessageCallback, data: dict) -> None:
     await show_profile_review(event, context, target_state=LegacyUpgrade.waiting_for_review)
 
 
-# ---------- Согласие на уведомления ----------
 @router.message_callback(LegacyUpgrade.waiting_for_notifications_consent)
-async def process_notifications_consent(event: MessageCallback, data: dict) -> None:
+async def process_notifications_consent(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обрабатывает выбор пользователя по согласию на уведомления.
     Сохраняет выбор, снимает флаг is_legacy и запускает синхронизацию с iiko.
     """
     if event.callback.payload not in ["notify_yes", "notify_no"]:
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     user_id = event.user.user_id
@@ -536,17 +478,12 @@ async def process_notifications_consent(event: MessageCallback, data: dict) -> N
     await sync_user_with_iiko(event, user)
 
 
-# ---------- Повторная попытка iiko ----------
 @router.message_callback(LegacyUpgrade.waiting_for_iiko_registration)
-async def retry_iiko_registration(event: MessageCallback, data: dict) -> None:
+async def retry_iiko_registration(event: MessageCallback, context: MemoryContext) -> None:
     """
     Повторная попытка синхронизации с iiko при ошибке.
     """
     if event.callback.payload != "retry_iiko_registration":
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     await event.answer("")

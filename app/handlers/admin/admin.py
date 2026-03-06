@@ -11,7 +11,6 @@
 """
 
 import re
-from loguru import logger
 
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
@@ -67,17 +66,12 @@ async def admin_command(event: MessageCreated) -> None:
 
 # ---------- Начало создания рассылки ----------
 @router.message_callback(Command('admin_broadcast'))
-async def start_broadcast(event: MessageCallback, data: dict) -> None:
+async def start_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
-        logger.error("Контекст не найден")
         return
 
     bot = event.bot
@@ -95,14 +89,10 @@ async def start_broadcast(event: MessageCallback, data: dict) -> None:
 
 # ---------- Получение сообщения для рассылки ----------
 @router.message_created(AdminStates.broadcast_message)
-async def receive_broadcast_message(event: MessageCreated, data: dict) -> None:
+async def receive_broadcast_message(event: MessageCreated, context: MemoryContext) -> None:
     """
     Получение сообщения, которое будет разослано.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     if not is_admin(event.sender.user_id):
         await context.clear()
         return
@@ -127,16 +117,12 @@ async def receive_broadcast_message(event: MessageCreated, data: dict) -> None:
 
 # ---------- Добавление кнопки ----------
 @router.message_callback(Command('broadcast_add_button'))
-async def add_button_to_broadcast(event: MessageCallback, data: dict) -> None:
+async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     bot = event.bot
@@ -156,14 +142,10 @@ async def add_button_to_broadcast(event: MessageCallback, data: dict) -> None:
 
 # ---------- Получение данных кнопки ----------
 @router.message_created(AdminStates.broadcast_button)
-async def receive_broadcast_button(event: MessageCreated, data: dict) -> None:
+async def receive_broadcast_button(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает ввод кнопки (текст и URL).
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     if not is_admin(event.sender.user_id):
         await context.clear()
         return
@@ -224,16 +206,12 @@ async def receive_broadcast_button(event: MessageCreated, data: dict) -> None:
 
 # ---------- Рассылка без кнопки ----------
 @router.message_callback(Command('broadcast_no_button'))
-async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
+async def broadcast_without_button(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     bot = event.bot
@@ -252,16 +230,12 @@ async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
 
 # ---------- Подтверждение рассылки ----------
 @router.message_callback(Command('broadcast_confirm_yes'))
-async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
+async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Запуск рассылки.
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     bot = event.bot
@@ -276,11 +250,10 @@ async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_callback(Command('broadcast_confirm_no'))
-async def cancel_broadcast(event: MessageCallback, data: dict) -> None:
+async def cancel_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена рассылки.
     """
-    context: MemoryContext = data.get('context')
     if context:
         await context.clear()
     await event.answer("")
@@ -288,11 +261,10 @@ async def cancel_broadcast(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_callback(Command('broadcast_cancel'))
-async def cancel_broadcast_creation(event: MessageCallback, data: dict) -> None:
+async def cancel_broadcast_creation(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена создания рассылки на любом этапе.
     """
-    context: MemoryContext = data.get('context')
     if context:
         await context.clear()
     await event.answer("")
@@ -301,15 +273,11 @@ async def cancel_broadcast_creation(event: MessageCallback, data: dict) -> None:
 
 # ---------- Команда /cancel для отмены состояния ----------
 @router.message_created(Command('cancel'))
-async def cancel_any_state(event: MessageCreated, data: dict) -> None:
+async def cancel_any_state(event: MessageCreated, context: MemoryContext) -> None:
     """
     Отмена любого текущего состояния (если есть).
     """
     if not is_admin(event.sender.user_id):
-        return
-
-    context: MemoryContext = data.get('context')
-    if not context:
         return
 
     current_state = await context.get_state()
