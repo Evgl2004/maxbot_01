@@ -11,7 +11,6 @@ from loguru import logger
 
 from maxapi import Router
 from maxapi.types import Command, MessageCreated
-# Для работы с FSM потребуется контекст, он будет передан в data
 from maxapi.context import MemoryContext
 
 from app.database import db
@@ -25,7 +24,7 @@ router = Router()
 
 
 @router.message_created(Command('start'))
-async def start_command(event: MessageCreated, data: dict):
+async def start_command(event: MessageCreated, data: dict) -> None:
     """
     👋 Обработчик команды /start.
 
@@ -42,11 +41,10 @@ async def start_command(event: MessageCreated, data: dict):
         data (dict): словарь с дополнительными данными, переданными middleware
                      В частности, там может быть ключ 'context' для работы с FSM
     """
-    # Получаем контекст из data (он автоматически добавляется диспетчером)
+    # Получаем контекст FSM (он может понадобиться для установки состояния)
     context: MemoryContext = data.get('context')
-    if context is None:
-        # На случай, если контекст не передан – создаём временный (но лучше не должно быть)
-        logger.error("Контекст не найден в данных обработчика")
+    if not context:
+        logger.error("Контекст не найден")
         return
 
     # Получаем пользователя из события
@@ -55,7 +53,6 @@ async def start_command(event: MessageCreated, data: dict):
     logger.info(f"Пользователь user_id={user_id} запустил бот")
 
     # Получаем полные данные пользователя из БД
-    # (middleware уже должен был сохранить пользователя, но для надёжности берём из БД)
     db_user = await db.get_user(user_id)
     if not db_user:
         logger.error(f"Пользователь user_id={user_id} не найден в БД")
@@ -64,13 +61,12 @@ async def start_command(event: MessageCreated, data: dict):
     # --- Проверка, является ли пользователь устаревшим ---
     if db_user.is_registered and db_user.is_legacy:
         logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления данных")
-        # Вызываем обработчик legacy, передаём событие и пользователя (без контекста, он сам получит)
+        # Вызываем обработчик legacy, передаём событие и пользователя
         await start_legacy_upgrade(event, db_user)
         return
 
     # --- Проверка согласия с правилами ---
     if not db_user.rules_accepted:
-        # Отправляем сообщение с правилами и клавиатурой
         await event.message.answer(
             text=(
                 "👋 Здравствуй Друг!\n\n"
@@ -79,15 +75,13 @@ async def start_command(event: MessageCreated, data: dict):
                 "и согласие с политикой конфиденциальности.\n\n"
                 "👉 Ознакомься с документами по ссылке ниже и нажми «✅ Согласен»."
             ),
-            attachments=[get_rules_keyboard()]   # клавиатура передаётся как вложение
+            attachments=[get_rules_keyboard()]
         )
-        # Устанавливаем состояние ожидания согласия с правилами
         await context.set_state(Registration.waiting_for_rules_consent)
         return
 
     # --- Проверка завершённости регистрации ---
     if not db_user.is_registered:
-        # Запрашиваем контакт
         await event.message.answer(
             text=(
                 "📱 Чтобы подключиться к программе лояльности, нажми кнопку «Поделиться контактом».\n"
@@ -101,6 +95,6 @@ async def start_command(event: MessageCreated, data: dict):
     # --- Если регистрация завершена — показываем главное меню ---
     await show_main_menu(
         chat_id=event.message.chat.id,
-        bot=event.bot,                     # бот доступен через event.bot
+        bot=event.bot,
         user_name=db_user.first_name_input or "Гость"
     )

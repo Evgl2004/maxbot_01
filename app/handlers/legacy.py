@@ -229,7 +229,7 @@ async def process_field_input(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.sender.id
+    user_id = event.sender.user_id
     data_from_context = await context.get_data()
     missing_fields = data_from_context.get('missing_fields', [])
     if not missing_fields:
@@ -430,7 +430,7 @@ async def process_edit_field(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.sender.id
+    user_id = event.sender.user_id
     context_data = await context.get_data()
     field = context_data.get('edit_field')
     value = event.message.text.strip()
