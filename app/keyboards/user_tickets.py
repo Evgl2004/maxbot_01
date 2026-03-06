@@ -1,7 +1,6 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from app.database.models import Ticket
 from typing import List
+from maxbot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from app.database.models import Ticket
 
 
 class UserTicketsKeyboard:
@@ -10,7 +9,7 @@ class UserTicketsKeyboard:
     @staticmethod
     def tickets_list(tickets: List[Ticket], current_page: int, total_pages: int) -> InlineKeyboardMarkup:
         """Список тикетов с пагинацией"""
-        builder = InlineKeyboardBuilder()
+        keyboard = []
 
         for ticket in tickets:
             status_emoji = {
@@ -18,15 +17,13 @@ class UserTicketsKeyboard:
                 "in_progress": "🔄",
                 "closed": "🔒"
             }.get(ticket.status, "❓")
-            # Краткое описание: дата, статус, первые 20 символов вопроса
             short_question = (ticket.message[:20] + "…") if len(ticket.message) > 20 else ticket.message
             button_text = f"{status_emoji} #{ticket.id} от {ticket.created_at.strftime('%d.%m')}: {short_question}"
-            builder.row(InlineKeyboardButton(
-                text=button_text,
-                callback_data=f"user_ticket_{ticket.id}"
-            ))
+            keyboard.append([
+                InlineKeyboardButton(text=button_text, callback_data=f"user_ticket_{ticket.id}")
+            ])
 
-        # Кнопки пагинации
+        # Пагинация
         nav_row = []
         if current_page > 1:
             nav_row.append(InlineKeyboardButton(
@@ -39,65 +36,53 @@ class UserTicketsKeyboard:
                 callback_data=f"user_tickets_page_{current_page + 1}"
             ))
         if nav_row:
-            builder.row(*nav_row)
+            keyboard.append(nav_row)
 
-        # Кнопка возврата в отдел заботы
-        builder.row(InlineKeyboardButton(
-            text="🔙 Назад в отдел заботы",
-            callback_data="back_to_support"
-        ))
+        # Назад в отдел заботы
+        keyboard.append([
+            InlineKeyboardButton(text="🔙 Назад в отдел заботы", callback_data="back_to_support")
+        ])
 
-        return builder.as_markup()
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @staticmethod
     def back_to_support() -> InlineKeyboardMarkup:
-        """Простая клавиатура с кнопкой назад в отдел заботы"""
-        builder = InlineKeyboardBuilder()
-        builder.row(InlineKeyboardButton(
-            text="🔙 Назад в отдел заботы",
-            callback_data="back_to_support"
-        ))
-        return builder.as_markup()
+        """Кнопка назад в отдел заботы"""
+        keyboard = [[
+            InlineKeyboardButton(text="🔙 Назад в отдел заботы", callback_data="back_to_support")
+        ]]
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @staticmethod
     def ticket_details(ticket_id: int, status: str) -> InlineKeyboardMarkup:
-        """Клавиатура для просмотра деталей тикета пользователем"""
-
-        builder = InlineKeyboardBuilder()
+        """Детали тикета для пользователя"""
+        keyboard = []
         if status != 'closed':
-            builder.row(InlineKeyboardButton(
-                text="📝 Ответить",
-                callback_data=f"user_reply_{ticket_id}"
-            ))
-        builder.row(InlineKeyboardButton(
-            text="🔙 Назад к списку",
-            callback_data="my_tickets"
-        ))
-        return builder.as_markup()
+            keyboard.append([
+                InlineKeyboardButton(text="📝 Ответить", callback_data=f"user_reply_{ticket_id}")
+            ])
+        keyboard.append([
+            InlineKeyboardButton(text="🔙 Назад к списку", callback_data="my_tickets")
+        ])
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @staticmethod
     def cancel_reply(ticket_id: int) -> InlineKeyboardMarkup:
-        """Клавиатура для отмены ответа на тикет"""
-
-        builder = InlineKeyboardBuilder()
-        builder.row(InlineKeyboardButton(
-            text="❌ Отмена",
-            callback_data=f"user_ticket_{ticket_id}"
-        ))
-        return builder.as_markup()
+        """Отмена ответа на тикет"""
+        keyboard = [[
+            InlineKeyboardButton(text="❌ Отмена", callback_data=f"user_ticket_{ticket_id}")
+        ]]
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @staticmethod
     def notification_keyboard(ticket_id: int, status: str) -> InlineKeyboardMarkup:
-        """Клавиатура для уведомления пользователя о новом ответе модератора"""
-
-        builder = InlineKeyboardBuilder()
+        """Уведомление о новом ответе модератора"""
+        keyboard = []
         if status != 'closed':
-            builder.row(InlineKeyboardButton(
-                text="📝 Ответить",
-                callback_data=f"user_reply_{ticket_id}"
-            ))
-        builder.row(InlineKeyboardButton(
-            text="📋 Мои обращения",
-            callback_data="my_tickets"
-        ))
-        return builder.as_markup()
+            keyboard.append([
+                InlineKeyboardButton(text="📝 Ответить", callback_data=f"user_reply_{ticket_id}")
+            ])
+        keyboard.append([
+            InlineKeyboardButton(text="📋 Мои обращения", callback_data="my_tickets")
+        ])
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)

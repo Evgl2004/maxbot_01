@@ -1,7 +1,8 @@
 """
 Состояния для админской части
 """
-from aiogram.fsm.state import State, StatesGroup
+
+from maxbot.fsm import State, StatesGroup
 
 
 class AdminStates(StatesGroup):

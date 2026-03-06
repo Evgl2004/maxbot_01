@@ -3,7 +3,7 @@
 Каждый класс наследуется от StatesGroup, а каждый атрибут — это отдельное состояние (State).
 """
 
-from aiogram.fsm.state import State, StatesGroup
+from maxbot.fsm import State, StatesGroup
 
 
 class Registration(StatesGroup):

@@ -2,7 +2,7 @@
 Состояния для процесса апгрейда пользователей из старого бота.
 """
 
-from aiogram.fsm.state import State, StatesGroup
+from maxbot.fsm import State, StatesGroup
 
 
 class LegacyUpgrade(StatesGroup):

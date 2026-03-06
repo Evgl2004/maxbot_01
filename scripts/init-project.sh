@@ -207,7 +207,7 @@ main() {
     echo -e "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
     
     # Сбор информации о боте
-    ask_input "Введите токен вашего бота (от @BotFather)" "BOT_TOKEN" "true"
+    ask_input "Введите токен вашего бота (от @masterbot)" "BOT_TOKEN" "true"
     ask_bot_username
     ask_input "Введите ваш Telegram ID (для админки)" "ADMIN_ID" "true"
     

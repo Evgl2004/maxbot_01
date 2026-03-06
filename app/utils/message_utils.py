@@ -1,14 +1,21 @@
-from aiogram.types import CallbackQuery
+from maxbot.types import Callback
 
 
-async def safe_edit_message(callback: CallbackQuery, text: str, **kwargs):
+async def safe_edit_message(callback: Callback, bot, text: str, **kwargs):
     """
-    Безопасное редактирование сообщения.
-    Если исходное сообщение не найдено (удалено), отправляет новое.
+    Безопасное редактирование сообщения для maxbot.
+    Если исходное сообщение не найдено (ошибка), отправляет новое.
     """
-
     try:
-        await callback.message.edit_text(text, **kwargs)
+        await bot.update_message(
+            message_id=callback.message.id,
+            text=text,
+            **kwargs
+        )
     except Exception:
         # При ошибке отправляем новое сообщение
-        await callback.message.answer(text, **kwargs)
+        await bot.send_message(
+            chat_id=callback.message.chat.id,
+            text=text,
+            **kwargs
+        )

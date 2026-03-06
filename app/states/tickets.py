@@ -1,7 +1,8 @@
 """
 Состояния для системы тикетов
 """
-from aiogram.fsm.state import State, StatesGroup
+
+from maxbot.fsm import State, StatesGroup
 
 
 class TicketStates(StatesGroup):
