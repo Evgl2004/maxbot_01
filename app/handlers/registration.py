@@ -42,6 +42,7 @@ from app.utils.validation import (
 )
 from app.utils.profile import show_profile_review
 from app.services.user_sync import sync_user_with_iiko
+from app.utils.vcf_parser import extract_phone_from_vcf
 
 router = Router()
 
@@ -77,51 +78,33 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
 
 @router.message_created(Registration.waiting_for_contact)
 async def process_contact(event: MessageCreated, context: MemoryContext) -> None:
-
-    # --- ВРЕМЕННЫЙ ОТЛАДОЧНЫЙ БЛОК ---
-    logger.info("=== ОТЛАДКА process_contact ===")
-    logger.info(f"Тип event: {type(event)}")
-    logger.info(f"Атрибуты event: {dir(event)}")
-    logger.info(f"event.message: {event.message}")
-    logger.info(f"Тип event.message: {type(event.message)}")
-    if hasattr(event.message, 'body'):
-        logger.info(f"event.message.body: {event.message.body}")
-        logger.info(f"Атрибуты body: {dir(event.message.body)}")
-        if hasattr(event.message.body, 'attachments'):
-            logger.info(f"body.attachments: {event.message.body.attachments}")
-    if hasattr(event.message, 'attachments'):
-        logger.info(f"message.attachments: {event.message.attachments}")
-    logger.info("================================")
-    # ----------------------------------------
-
-    # Проверяем наличие вложений
+    """
+    Обрабатывает получение контакта от пользователя.
+    Извлекает номер телефона из VCF-вложения, сохраняет в БД и переводит
+    пользователя в состояние ожидания имени.
+    """
+    # 1. Проверяем наличие вложений
     if not event.message.body.attachments:
         await event.message.answer(
             text="📱 Пожалуйста, нажмите кнопку «Поделиться контактом» на клавиатуре."
         )
         return
 
-    contact_att = None
-    for att in event.message.body.attachments:
-        logger.debug(f"📎 Вложение: type={att.type}, payload={att.payload}")
-        if att.type == "contact":
-            contact_att = att
-            break
-
+    # 2. Ищем вложение типа contact
+    contact_att = next(
+        (att for att in event.message.body.attachments if att.type == "contact"),
+        None
+    )
     if not contact_att:
         await event.message.answer(
             text="❌ Не удалось найти контакт. Пожалуйста, используйте кнопку."
         )
         return
 
-    # Извлекаем номер телефона (логика остаётся прежней)
+    # 3. Извлекаем номер из VCF
     phone = None
-    if hasattr(contact_att, 'payload') and isinstance(contact_att.payload, dict):
-        phone = contact_att.payload.get('phoneNumber')
-    if not phone and hasattr(contact_att, 'phone'):
-        phone = contact_att.phone
-    if not phone and hasattr(contact_att, 'id'):
-        phone = contact_att.id
+    if hasattr(contact_att, 'payload') and hasattr(contact_att.payload, 'vcf_info'):
+        phone = extract_phone_from_vcf(contact_att.payload.vcf_info)
 
     if not phone:
         logger.error(f"❌ Не удалось извлечь номер из контакта. Вложение: {contact_att}")
@@ -130,13 +113,16 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
+    # 4. Приводим номер к формату с '+'
     if not phone.startswith('+'):
         phone = '+' + phone
 
+    # 5. Сохраняем в БД
     user_id = event.from_user.user_id
     await db.update_user(user_id, phone_number=phone)
     logger.info(f"✅ Пользователь {user_id} отправил контакт, номер сохранён: {phone}")
 
+    # 6. Переходим к следующему шагу
     await event.message.answer(
         text="✅ Спасибо! Номер телефона сохранён.\n\n"
              "✍️ Теперь, пожалуйста, напишите ваше имя."
