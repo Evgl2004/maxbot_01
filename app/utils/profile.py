@@ -29,7 +29,7 @@ async def show_profile_review(
         target_state: состояние, в которое нужно перевести пользователя после показа анкеты
                       (обычно Registration.waiting_for_review или LegacyUpgrade.waiting_for_review)
     """
-    user_id = event.sender.id if isinstance(event, MessageCreated) else event.user.id
+    user_id = event.sender.id if isinstance(event, MessageCreated) else event.user.user_id
     bot = event.bot
 
     user = await db.get_user(user_id)

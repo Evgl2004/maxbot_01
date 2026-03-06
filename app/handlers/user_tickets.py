@@ -33,7 +33,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
     Показывает первую страницу списка тикетов текущего пользователя.
     """
     bot = event.bot
-    user_id = event.user.id
+    user_id = event.user.user_id
 
     # Получаем первую страницу тикетов пользователя (по 5 на странице)
     tickets, total_count = await ticket_service.get_tickets_page(
@@ -81,7 +81,7 @@ async def user_tickets_page(event: MessageCallback) -> None:
         await event.answer("❌ Ошибка")
         return
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     tickets, total_count = await ticket_service.get_tickets_page(
         page=page,
         per_page=5,
@@ -124,7 +124,7 @@ async def user_ticket_details(event: MessageCallback) -> None:
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
-    if not ticket or ticket.user_id != event.user.id:
+    if not ticket or ticket.user_id != event.user.user_id:
         await event.answer("❌ Тикет не найден или доступ запрещён")
         return
 
@@ -155,7 +155,7 @@ async def user_reply_to_ticket(event: MessageCallback, data: dict) -> None:
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
-    if not ticket or ticket.user_id != event.user.id:
+    if not ticket or ticket.user_id != event.user.user_id:
         await event.answer("❌ Доступ запрещён")
         return
 

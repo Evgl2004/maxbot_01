@@ -28,7 +28,7 @@ async def help_command(event: MessageCreated):
         event (MessageCreated): событие создания сообщения.
     """
     user = event.from_user
-    logger.info(f"ℹ️ Пользователь {user.id} запросил справку")
+    logger.info(f"ℹ️ Пользователь {user.user_id} запросил справку")
 
     # Формируем текст справки (точно как в оригинале, но с учётом среды)
     help_text = (
@@ -58,7 +58,7 @@ async def status_command(event: MessageCreated):
         event (MessageCreated): событие создания сообщения.
     """
     user = event.from_user
-    logger.info(f"📊 Пользователь {user.id} запросил статус")
+    logger.info(f"📊 Пользователь {user.user_id} запросил статус")
 
     current_time = datetime.now().strftime('%H:%M:%S %d.%m.%Y')
 

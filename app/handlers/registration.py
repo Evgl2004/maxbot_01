@@ -82,7 +82,7 @@ async def process_rules_accept(event: MessageCallback, data: dict) -> None:
         logger.error("❌ Контекст не найден в данных обработчика")
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     logger.info(f"👤 Пользователь {user_id} принял согласие с правилами")
 
     # Сохраняем согласие в базе данных
@@ -188,7 +188,7 @@ async def process_contact(event: MessageCreated, data: dict) -> None:
     if not phone.startswith('+'):
         phone = '+' + phone
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     await db.update_user(user_id, phone_number=phone)
     logger.info(f"✅ Пользователь {user_id} отправил контакт, номер сохранён: {phone}")
 
@@ -227,7 +227,7 @@ async def process_first_name(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     first_name_text = event.message.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит имя: '{first_name_text}'")
 
@@ -273,7 +273,7 @@ async def process_last_name(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     last_name_text = event.message.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит фамилию: '{last_name_text}'")
 
@@ -316,7 +316,7 @@ async def process_gender(event: MessageCallback, data: dict) -> None:
     if not context:
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     gender_value = "male" if event.callback.payload == "gender_male" else "female"
     gender_text = "мужской" if gender_value == "male" else "женский"
     logger.info(f"👤 Пользователь user_id={user_id} выбрал пол: {gender_text}")
@@ -364,7 +364,7 @@ async def process_birth_date(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     text = event.message.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит дату рождения: '{text}'")
 
@@ -410,7 +410,7 @@ async def process_email(event: MessageCreated, data: dict) -> None:
         )
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     email = event.message.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит email: '{email}'")
 
@@ -542,7 +542,7 @@ async def process_edit_first_name(event: MessageCreated, data: dict) -> None:
         await event.message.answer(text="✍️ Пожалуйста, введите имя текстовым сообщением.")
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     value = event.message.text.strip()
     is_valid, error = await validate_first_name(value)
     if not is_valid:
@@ -568,7 +568,7 @@ async def process_edit_last_name(event: MessageCreated, data: dict) -> None:
         await event.message.answer(text="✍️ Пожалуйста, введите фамилию текстовым сообщением.")
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     value = event.message.text.strip()
     is_valid, error = await validate_last_name(value)
     if not is_valid:
@@ -592,7 +592,7 @@ async def process_edit_gender(event: MessageCallback, data: dict) -> None:
     if not context:
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     gender = "male" if event.callback.payload == "gender_male" else "female"
     await db.update_user(user_id, gender=gender)
     await event.answer("✅ Пол сохранён.")
@@ -612,7 +612,7 @@ async def process_edit_birth_date(event: MessageCreated, data: dict) -> None:
         await event.message.answer(text="✍️ Пожалуйста, введите дату текстовым сообщением.")
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     value = event.message.text.strip()
     is_valid, error = await validate_birth_date(value)
     if not is_valid:
@@ -638,7 +638,7 @@ async def process_edit_email(event: MessageCreated, data: dict) -> None:
         await event.message.answer(text="✍️ Пожалуйста, введите почту текстовым сообщением.")
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     value = event.message.text.strip()
     is_valid, error = await validate_email(value)
     if not is_valid:
@@ -672,7 +672,7 @@ async def process_notifications_consent(event: MessageCallback, data: dict) -> N
     if not context:
         return
 
-    user_id = event.from_user.id
+    user_id = event.from_user.user_id
     notifications_allowed = (event.callback.payload == "notify_yes")
     choice_text = "согласился на уведомления" if notifications_allowed else "отказался от уведомлений"
     logger.info(f"👤 Пользователь user_id={user_id} {choice_text}")
@@ -728,7 +728,7 @@ async def retry_iiko_registration(event: MessageCallback, data: dict) -> None:
         return
 
     await event.answer("")
-    user = await db.get_user(event.from_user.id)
+    user = await db.get_user(event.from_user.user_id)
     if not user:
         await event.message.answer(text="❌ Ошибка загрузки пользователя")
         await context.clear()

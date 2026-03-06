@@ -66,7 +66,7 @@ async def process_balance(event: MessageCallback) -> None:
     bot = event.bot
     await event.answer("")
 
-    user = await db.get_user(event.user.id)
+    user = await db.get_user(event.user.user_id)
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию."
         await bot.update_message(
@@ -115,7 +115,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     bot = event.bot
     await event.answer("")
 
-    user = await db.get_user(event.user.id)
+    user = await db.get_user(event.user.user_id)
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию через /start."
         await bot.update_message(
@@ -227,7 +227,7 @@ async def process_support(event: MessageCallback) -> None:
     bot = event.bot
     await event.answer("")
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     tickets_count = await ticket_service.get_user_tickets_count(user_id)
     has_tickets = tickets_count > 0
 
@@ -420,7 +420,7 @@ async def process_back_to_main(event: MessageCallback, data: dict) -> None:
     bot = event.bot
     await event.answer("")
 
-    user = await db.get_user(event.user.id)
+    user = await db.get_user(event.user.user_id)
     if not user:
         await bot.answer_callback(event.callback_id, "Пользователь не найден")
         return
@@ -447,7 +447,7 @@ async def process_back_to_support(event: MessageCallback, data: dict) -> None:
     bot = event.bot
     await event.answer("")
 
-    user_id = event.user.id
+    user_id = event.user.user_id
     tickets_count = await ticket_service.get_user_tickets_count(user_id)
     has_tickets = tickets_count > 0
 

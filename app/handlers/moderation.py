@@ -114,7 +114,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
     """
     Главное меню модератора (callback).
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -144,7 +144,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
     """
     Обработчик кнопки «Все тикеты» – показывает первую страницу списка.
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -179,7 +179,7 @@ async def mod_tickets_filtered(event: MessageCallback, data: dict) -> None:
     Обработчик для отображения списка тикетов с фильтром.
     Фильтр извлекается из имени команды.
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -235,7 +235,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, data: dict) -> None:
     Обработчик переключения страниц списка тикетов с фильтром.
     Ожидает callback_data вида "mod_tickets_page_<filter>_<page>".
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -300,7 +300,7 @@ async def mod_ticket_details(event: MessageCallback, data: dict) -> None:
     """
     Показывает детальную информацию по тикету.
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -342,7 +342,7 @@ async def mod_reply_to_ticket(event: MessageCallback, data: dict) -> None:
     """
     Начало ответа на тикет (устанавливает состояние).
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -459,7 +459,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     """
     Закрывает тикет (устанавливает статус 'closed').
     """
-    if not await is_moderator(event.user.id):
+    if not await is_moderator(event.user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 

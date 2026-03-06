@@ -51,7 +51,7 @@ async def start_command(event: MessageCreated, data: dict):
 
     # Получаем пользователя из события
     user = event.from_user
-    user_id = user.id
+    user_id = user.user_id
     logger.info(f"Пользователь user_id={user_id} запустил бот")
 
     # Получаем полные данные пользователя из БД
