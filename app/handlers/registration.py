@@ -77,14 +77,32 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
 
 @router.message_created(Registration.waiting_for_contact)
 async def process_contact(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.attachments:
+
+    # --- ВРЕМЕННЫЙ ОТЛАДОЧНЫЙ БЛОК ---
+    logger.info("=== ОТЛАДКА process_contact ===")
+    logger.info(f"Тип event: {type(event)}")
+    logger.info(f"Атрибуты event: {dir(event)}")
+    logger.info(f"event.message: {event.message}")
+    logger.info(f"Тип event.message: {type(event.message)}")
+    if hasattr(event.message, 'body'):
+        logger.info(f"event.message.body: {event.message.body}")
+        logger.info(f"Атрибуты body: {dir(event.message.body)}")
+        if hasattr(event.message.body, 'attachments'):
+            logger.info(f"body.attachments: {event.message.body.attachments}")
+    if hasattr(event.message, 'attachments'):
+        logger.info(f"message.attachments: {event.message.attachments}")
+    logger.info("================================")
+    # ----------------------------------------
+
+    # Проверяем наличие вложений
+    if not event.message.body.attachments:
         await event.message.answer(
             text="📱 Пожалуйста, нажмите кнопку «Поделиться контактом» на клавиатуре."
         )
         return
 
     contact_att = None
-    for att in event.message.attachments:
+    for att in event.message.body.attachments:
         logger.debug(f"📎 Вложение: type={att.type}, payload={att.payload}")
         if att.type == "contact":
             contact_att = att
@@ -96,6 +114,7 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
+    # Извлекаем номер телефона (логика остаётся прежней)
     phone = None
     if hasattr(contact_att, 'payload') and isinstance(contact_att.payload, dict):
         phone = contact_att.payload.get('phoneNumber')
