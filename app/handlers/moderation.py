@@ -1,19 +1,26 @@
 """
 Обработчики для системы модерации
+===================================
+Содержит функции для:
+- меню модератора
+- просмотра списков тикетов с фильтрацией и пагинацией
+- просмотра деталей тикета
+- ответа на тикет
+- закрытия тикета
+- уведомления модераторов о новых тикетах
 """
 
 from loguru import logger
 
-from maxbot.router import Router
-from maxbot.types import Message, Callback
-from maxbot.filters import F
+from maxapi import Router
+from maxapi.types import MessageCreated, MessageCallback, Command
+from maxapi.context import MemoryContext
 
 from app.database import db
 from app.services.tickets import ticket_service
 from app.keyboards.moderation import ModerationKeyboard
 from app.keyboards.user_tickets import UserTicketsKeyboard
 from app.states.tickets import TicketStates
-from app.utils.validation import confirm_text
 from app.utils.ticket_formatter import format_ticket_details
 
 import html
@@ -41,21 +48,21 @@ FILTER_TITLES = {
 
 
 async def is_moderator(user_id: int) -> bool:
-    """Проверка, является ли пользователь модератором"""
+    """Проверка, является ли пользователь модератором."""
     return await db.is_user_moderator(user_id)
 
 
-@router.message(F.text == "👨‍💼 Модератор")
-async def moderator_menu(message: Message):
-    """Меню модератора"""
-    if not await is_moderator(message.sender.id):
-        await message.dispatcher.bot.send_message(
-            chat_id=message.chat.id,
-            text="❌ У вас нет прав модератора"
-        )
+# ---------- Меню модератора ----------
+@router.message_created(Command('mod'))
+async def mod_command(event: MessageCreated) -> None:
+    """
+    Команда /mod для открытия меню модератора.
+    """
+    if not await is_moderator(event.sender.id):
+        await event.message.answer(text="❌ У вас нет прав модератора")
         return
 
-    bot = message.dispatcher.bot
+    bot = event.bot
     open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
     stats_text = (
         f"👨‍💼 *Модератор*\n\n"
@@ -68,23 +75,50 @@ async def moderator_menu(message: Message):
         stats_text += "⏱ Среднее время ответа: -\n"
 
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=stats_text,
-        reply_markup=ModerationKeyboard.main_menu()
+        attachments=[ModerationKeyboard.main_menu()]
     )
 
 
-@router.callback()
-async def mod_main_callback(callback: Callback):
-    """Главное меню модератора (callback)"""
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+@router.message_created(Command('Модератор'))  # если есть кнопка с таким текстом
+async def moderator_menu(event: MessageCreated) -> None:
+    """
+    Обработчик нажатия на кнопку «Модератор» в меню (если она есть).
+    """
+    if not await is_moderator(event.sender.id):
+        await event.message.answer(text="❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
+    bot = event.bot
+    open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
+    stats_text = (
+        f"👨‍💼 *Модератор*\n\n"
+        f"📬 Новые тикеты: {open_count}\n"
+        f"🔄 В работе: {in_progress_count}\n"
+    )
+    if avg_response_time is not None:
+        stats_text += f"⏱ Среднее время ответа: {avg_response_time} мин\n"
+    else:
+        stats_text += "⏱ Среднее время ответа: -\n"
+
+    await bot.send_message(
+        chat_id=event.chat.id,
+        text=stats_text,
+        attachments=[ModerationKeyboard.main_menu()]
+    )
+
+
+@router.callback(Command('mod_main'))
+async def mod_main_callback(event: MessageCallback) -> None:
+    """
+    Главное меню модератора (callback).
+    """
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
+        return
+
+    bot = event.bot
     open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
     stats_text = (
         f"👨‍💼 *Модератор*\n\n"
@@ -97,70 +131,69 @@ async def mod_main_callback(callback: Callback):
         stats_text += "⏱ Среднее время ответа: -\n"
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=stats_text,
-        reply_markup=ModerationKeyboard.main_menu(),
-        format="markdown"
+        attachments=[ModerationKeyboard.main_menu()]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.callback()
-async def mod_tickets_list(callback: Callback):
+# ---------- Список тикетов ----------
+@router.callback(Command('mod_tickets'))
+async def mod_tickets_list(event: MessageCallback) -> None:
     """
     Обработчик кнопки «Все тикеты» – показывает первую страницу списка.
     """
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
+    bot = event.bot
     tickets, total_count = await ticket_service.get_tickets_page(page=1, per_page=10)
     total_pages = (total_count + 10 - 1) // 10
 
     if not tickets:
         text = "📭 Нет тикетов"
         await bot.update_message(
-            message_id=callback.message.id,
+            message_id=event.message.id,
             text=text,
-            reply_markup=ModerationKeyboard.main_menu()
+            attachments=[ModerationKeyboard.main_menu()]
         )
-        await bot.answer_callback(callback.callback_id, "")
+        await event.answer("")
         return
 
     text = f"📋 Все тикеты (страница 1/{total_pages}):"
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=text,
-        reply_markup=ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)
+        attachments=[ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.callback()
-async def mod_tickets_filtered(callback: Callback):
+@router.callback(Command('mod_tickets_all'))
+@router.callback(Command('mod_tickets_open'))
+@router.callback(Command('mod_tickets_progress'))
+async def mod_tickets_filtered(event: MessageCallback, data: dict) -> None:
     """
     Обработчик для отображения списка тикетов с фильтром.
-    Ожидает callback_data вида mod_tickets_all, mod_tickets_open, mod_tickets_in_progress.
+    Фильтр извлекается из имени команды.
     """
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
-    filter_key = callback.payload.split("_")[-1]
+    bot = event.bot
+    # payload имеет вид "mod_tickets_<filter>"
+    filter_key = event.callback.payload.split('_')[-1]
     if filter_key not in FILTER_STATUS_MAP:
-        await bot.answer_callback(callback.callback_id, "❌ Неизвестный фильтр")
+        await event.answer("❌ Неизвестный фильтр")
         return
 
-    # Сохраняем текущий фильтр в состояние
-    await callback.update_data(current_ticket_filter=filter_key)
+    # Сохраняем текущий фильтр в контексте (для возврата из деталей тикета)
+    context: MemoryContext = data.get('context')
+    if context:
+        await context.update_data(current_ticket_filter=filter_key)
 
     statuses = FILTER_STATUS_MAP[filter_key]
     tickets, total_count = await ticket_service.get_tickets_page(
@@ -173,58 +206,61 @@ async def mod_tickets_filtered(callback: Callback):
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют."
         await bot.update_message(
-            message_id=callback.message.id,
+            message_id=event.message.id,
             text=text,
-            reply_markup=ModerationKeyboard.back_to_main()
+            attachments=[ModerationKeyboard.back_to_main()]
         )
-        await bot.answer_callback(callback.callback_id, "")
+        await event.answer("")
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница 1/{total_pages}):"
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=text,
-        reply_markup=ModerationKeyboard.tickets_list(
+        attachments=[ModerationKeyboard.tickets_list(
             tickets,
             current_page=1,
             total_pages=total_pages,
             filter_key=filter_key
-        )
+        )]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.callback()
-async def mod_tickets_page_filtered(callback: Callback):
+@router.callback(Command('mod_tickets_page_all'))
+@router.callback(Command('mod_tickets_page_open'))
+@router.callback(Command('mod_tickets_page_progress'))
+async def mod_tickets_page_filtered(event: MessageCallback, data: dict) -> None:
     """
     Обработчик переключения страниц списка тикетов с фильтром.
-    Ожидает callback_data вида "mod_tickets_page_all_2", "mod_tickets_page_open_1" и т.д.
+    Ожидает callback_data вида "mod_tickets_page_<filter>_<page>".
     """
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
-    parts = callback.payload.split("_")
-    if len(parts) != 5:  # ["mod", "tickets", "page", filter, page_num]
-        await bot.answer_callback(callback.callback_id, "❌ Неверный формат данных")
+    bot = event.bot
+    parts = event.callback.payload.split('_')
+    # ["mod", "tickets", "page", filter, page_num]
+    if len(parts) != 5:
+        await event.answer("❌ Неверный формат данных")
         return
 
     filter_key = parts[3]
     try:
         page = int(parts[4])
     except ValueError:
-        await bot.answer_callback(callback.callback_id, "❌ Ошибка в номере страницы")
+        await event.answer("❌ Ошибка в номере страницы")
         return
 
     if filter_key not in FILTER_STATUS_MAP:
-        await bot.answer_callback(callback.callback_id, "❌ Неизвестный фильтр")
+        await event.answer("❌ Неизвестный фильтр")
         return
 
-    await callback.update_data(current_ticket_filter=filter_key)
+    # Сохраняем текущий фильтр в контексте
+    context: MemoryContext = data.get('context')
+    if context:
+        await context.update_data(current_ticket_filter=filter_key)
 
     statuses = FILTER_STATUS_MAP[filter_key]
     tickets, total_count = await ticket_service.get_tickets_page(
@@ -237,85 +273,99 @@ async def mod_tickets_page_filtered(callback: Callback):
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют на странице {page}."
         await bot.update_message(
-            message_id=callback.message.id,
+            message_id=event.message.id,
             text=text,
-            reply_markup=ModerationKeyboard.back_to_main()
+            attachments=[ModerationKeyboard.back_to_main()]
         )
-        await bot.answer_callback(callback.callback_id, "")
+        await event.answer("")
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница {page}/{total_pages}):"
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=text,
-        reply_markup=ModerationKeyboard.tickets_list(
+        attachments=[ModerationKeyboard.tickets_list(
             tickets,
             current_page=page,
             total_pages=total_pages,
             filter_key=filter_key
-        )
+        )]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.callback()
-async def mod_ticket_details(callback: Callback):
+# ---------- Детали тикета ----------
+@router.callback(Command('mod_ticket_'))
+async def mod_ticket_details(event: MessageCallback, data: dict) -> None:
     """
-    Показывает детальную информацию по тикету, включая всю историю переписки.
+    Показывает детальную информацию по тикету.
     """
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
+    bot = event.bot
+    # Извлекаем ID тикета из payload (ожидается mod_ticket_<id>)
+    ticket_id_str = event.callback.payload.replace('mod_ticket_', '')
     try:
-        ticket_id = int(callback.payload.split("_")[-1])
+        ticket_id = int(ticket_id_str)
     except ValueError:
-        await bot.answer_callback(callback.callback_id, "❌ Неверный формат данных")
+        await event.answer("❌ Неверный формат")
         return
 
-    data = await callback.get_data()
-    back_filter = data.get("current_ticket_filter", FILTER_ALL)
+    # Получаем текущий фильтр из контекста (для кнопки «Назад»)
+    context: MemoryContext = data.get('context')
+    back_filter = FILTER_ALL
+    if context:
+        context_data = await context.get_data()
+        back_filter = context_data.get('current_ticket_filter', FILTER_ALL)
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await bot.answer_callback(callback.callback_id, "❌ Тикет не найден")
+        await event.answer("❌ Тикет не найден")
         return
 
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=ticket_text,
-        reply_markup=ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter),
-        format="html"
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.callback()
-async def mod_reply_to_ticket(callback: Callback):
-    """Ответ на тикет"""
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+# ---------- Ответ на тикет ----------
+@router.callback(Command('mod_reply_'))
+async def mod_reply_to_ticket(event: MessageCallback, data: dict) -> None:
+    """
+    Начало ответа на тикет (устанавливает состояние).
+    """
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = callback.dispatcher.bot
-    ticket_id = int(callback.payload.split("_")[-1])
+    bot = event.bot
+    ticket_id_str = event.callback.payload.replace('mod_reply_', '')
+    try:
+        ticket_id = int(ticket_id_str)
+    except ValueError:
+        await event.answer("❌ Неверный формат")
+        return
+
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await bot.answer_callback(callback.callback_id, "❌ Тикет не найден")
+        await event.answer("❌ Тикет не найден")
         return
 
-    await callback.update_data(reply_ticket_id=ticket_id)
-    await callback.set_state(TicketStates.waiting_for_moderator_reply)
+    context: MemoryContext = data.get('context')
+    if not context:
+        logger.error("Контекст не найден")
+        return
+
+    await context.update_data(reply_ticket_id=ticket_id)
+    await context.set_state(TicketStates.waiting_for_moderator_reply)
 
     text = (
         f"📝 *Ответ на тикет #{ticket_id}*\n\n"
@@ -323,138 +373,116 @@ async def mod_reply_to_ticket(callback: Callback):
         f"(Поддерживается HTML форматирование)"
     )
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=text,
-        reply_markup=ModerationKeyboard.reply_to_ticket(ticket_id),
-        format="markdown"
+        attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-@router.message()
-async def mod_send_reply(message: Message):
-    # Проверяем состояние
-    current_state = await message.get_state()
-    if current_state != TicketStates.waiting_for_moderator_reply.full_name():
+@router.message_created(TicketStates.waiting_for_moderator_reply)
+async def mod_send_reply(event: MessageCreated, data: dict) -> None:
+    """
+    Обрабатывает ввод ответа модератора.
+    """
+    context: MemoryContext = data.get('context')
+    if not context:
         return
 
-    bot = message.dispatcher.bot
+    bot = event.bot
 
-    if not message.text:
+    if not event.message.text:
         await bot.send_message(
-            chat_id=message.chat.id,
+            chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте ответ текстовым сообщением."
         )
         return
 
-    if not await is_moderator(message.sender.id):
-        await message.reset_state()
-        await bot.send_message(chat_id=message.chat.id, text="❌ У вас нет прав модератора")
+    if not await is_moderator(event.sender.id):
+        await context.clear()
+        await bot.send_message(chat_id=event.chat.id, text="❌ У вас нет прав модератора")
         return
 
-    data = await message.get_data()
-    ticket_id = data.get("reply_ticket_id")
+    context_data = await context.get_data()
+    ticket_id = context_data.get('reply_ticket_id')
     if not ticket_id:
-        await message.reset_state()
+        await context.clear()
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await bot.send_message(chat_id=message.chat.id, text="❌ Тикет не найден")
-        await message.reset_state()
+        await bot.send_message(chat_id=event.chat.id, text="❌ Тикет не найден")
+        await context.clear()
         return
 
+    # Сохраняем ответ в историю
     await ticket_service.add_message_to_ticket(
         ticket_id=ticket_id,
         sender_type="moderator",
-        sender_id=message.sender.id,
-        message=message.text
+        sender_id=event.sender.id,
+        message=event.message.text
     )
 
+    # Обновляем статус, если тикет был открыт
     await ticket_service.update_ticket_status(ticket_id, "in_progress")
 
+    # Уведомляем пользователя
     try:
         await bot.send_message(
             chat_id=ticket.user_id,
             text=(
                 f"📬 <b>Ответ на ваш вопрос</b> (тикет #{ticket_id})\n\n"
                 f"📝 <b>Ответ от модератора:</b>\n"
-                f"{html.escape(message.text)}"
+                f"{html.escape(event.message.text)}"
             ),
-            reply_markup=UserTicketsKeyboard.notification_keyboard(ticket_id, ticket.status),
-            format="html"
+            attachments=[UserTicketsKeyboard.notification_keyboard(ticket_id, ticket.status)]
         )
     except Exception as e:
         logger.error(f"Ошибка при отправке ответа пользователю: {e}")
 
+    # Отображаем обновлённый тикет модератору
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=ticket_text,
-        reply_markup=ModerationKeyboard.ticket_details(ticket_id, ticket.status),
-        format="html"
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
     )
 
-    await message.reset_state()
+    await context.clear()
 
 
-@router.message(F.text == "/mod")
-async def mod_command(message: Message):
-    """Команда для открытия меню модератора"""
-    if not await is_moderator(message.sender.id):
-        await message.dispatcher.bot.send_message(
-            chat_id=message.chat.id,
-            text="❌ У вас нет прав модератора"
-        )
+# ---------- Закрытие тикета ----------
+@router.callback(Command('mod_close_'))
+async def mod_close_ticket(event: MessageCallback) -> None:
+    """
+    Закрывает тикет (устанавливает статус 'closed').
+    """
+    if not await is_moderator(event.user.id):
+        await event.answer("❌ У вас нет прав модератора")
         return
 
-    bot = message.dispatcher.bot
-    open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
-    stats_text = (
-        f"👨‍💼 *Модератор*\n\n"
-        f"📬 Новые тикеты: {open_count}\n"
-        f"🔄 В работе: {in_progress_count}\n"
-    )
-    if avg_response_time is not None:
-        stats_text += f"⏱ Среднее время ответа: {avg_response_time} мин\n"
-    else:
-        stats_text += "⏱ Среднее время ответа: -\n"
-
-    await bot.send_message(
-        chat_id=message.chat.id,
-        text=stats_text,
-        reply_markup=ModerationKeyboard.main_menu(),
-        format="markdown"
-    )
-
-
-@router.callback()
-async def mod_close_ticket(callback: Callback):
-    """Закрыть тикет (установить статус closed и время закрытия)"""
-    if not await is_moderator(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(
-            callback.callback_id,
-            "❌ У вас нет прав модератора"
-        )
+    bot = event.bot
+    ticket_id_str = event.callback.payload.replace('mod_close_', '')
+    try:
+        ticket_id = int(ticket_id_str)
+    except ValueError:
+        await event.answer("❌ Неверный формат")
         return
-
-    bot = callback.dispatcher.bot
-    ticket_id = int(callback.payload.split("_")[-1])
 
     success = await ticket_service.close_ticket(ticket_id)
     if not success:
-        await bot.answer_callback(callback.callback_id, "❌ Тикет не найден")
+        await event.answer("❌ Тикет не найден")
         return
 
-    await bot.answer_callback(callback.callback_id, "✅ Тикет закрыт")
+    await event.answer("✅ Тикет закрыт")
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
         text = "❌ Ошибка при загрузке тикета"
         await bot.update_message(
-            message_id=callback.message.id,
+            message_id=event.message.id,
             text=text
         )
         return
@@ -463,8 +491,7 @@ async def mod_close_ticket(callback: Callback):
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=ticket_text,
-        reply_markup=ModerationKeyboard.ticket_details(ticket_id, ticket.status),
-        format="html"
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
     )

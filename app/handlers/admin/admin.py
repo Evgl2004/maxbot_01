@@ -1,40 +1,46 @@
 """
 Обработчики меню Администратора
+=================================
+Содержит функции для:
+- команды /admin
+- начала создания рассылки
+- приёма сообщения для рассылки
+- добавления кнопки
+- подтверждения рассылки
+- запуска рассылки через сервис BroadcastService
 """
 
 import re
 from loguru import logger
 
-from maxbot.router import Router
-from maxbot.types import Message, Callback
-from maxbot.filters import F
+from maxapi import Router
+from maxapi.types import MessageCreated, MessageCallback, Command
+from maxapi.context import MemoryContext
 
 from app.config import settings
 from app.database import db
 from app.states import AdminStates
 from app.keyboards import AdminKeyboards
-from app.services import BroadcastService
 
 router = Router()
 
 
 def is_admin(user_id: int) -> bool:
-    """Проверка, является ли пользователь админом"""
+    """Проверка, является ли пользователь администратором."""
     return settings.is_admin(user_id)
 
 
 # ---------- Команда /admin ----------
-@router.message(F.text == "/admin")
-async def admin_command(message: Message):
-    """Обработчик команды /admin"""
-    if not is_admin(message.sender.id):
-        await message.dispatcher.bot.send_message(
-            chat_id=message.chat.id,
-            text="❌ У вас нет прав администратора"
-        )
+@router.message_created(Command('admin'))
+async def admin_command(event: MessageCreated) -> None:
+    """
+    Обработчик команды /admin. Показывает статистику и меню администратора.
+    """
+    if not is_admin(event.sender.id):
+        await event.message.answer(text="❌ У вас нет прав администратора")
         return
 
-    bot = message.dispatcher.bot
+    bot = event.bot
     stats = await db.get_bot_stats()
     if not stats:
         stats = await db.update_bot_stats()
@@ -53,290 +59,262 @@ async def admin_command(message: Message):
         f"Выберите действие:"
     )
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=text,
-        reply_markup=AdminKeyboards.main_admin_menu(),
-        format="html"
+        attachments=[AdminKeyboards.main_admin_menu()]
     )
 
 
-# ---------- Начало рассылки ----------
-@router.callback(F.payload == "admin_broadcast")
-async def start_broadcast(callback: Callback):
-    """Начало создания рассылки"""
-    if not is_admin(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(callback.callback_id, "❌ Нет прав")
+# ---------- Начало создания рассылки ----------
+@router.callback(Command('admin_broadcast'))
+async def start_broadcast(event: MessageCallback, data: dict) -> None:
+    """
+    Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
+    """
+    if not is_admin(event.user.id):
+        await event.answer("❌ Нет прав")
         return
 
-    await callback.set_state(AdminStates.broadcast_message)
-    bot = callback.dispatcher.bot
+    context: MemoryContext = data.get('context')
+    if not context:
+        logger.error("Контекст не найден")
+        return
+
+    bot = event.bot
+    await context.set_state(AdminStates.broadcast_message)
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text="📤 <b>Создание рассылки</b>\n\n"
              "Отправьте сообщение любого типа (текст, фото, видео, документ и т.д.), "
              "которое хотите разослать всем пользователям бота.\n\n"
              "Для отмены введите /cancel",
-        format="html"
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
 # ---------- Получение сообщения для рассылки ----------
-@router.message()
-async def receive_broadcast_message(message: Message):
-    """Получение сообщения для рассылки"""
-    current_state = await message.get_state()
-    if current_state != AdminStates.broadcast_message.full_name():
+@router.message_created(AdminStates.broadcast_message)
+async def receive_broadcast_message(event: MessageCreated, data: dict) -> None:
+    """
+    Получение сообщения, которое будет разослано.
+    """
+    context: MemoryContext = data.get('context')
+    if not context:
         return
 
-    if not is_admin(message.sender.id):
-        await message.reset_state()
+    if not is_admin(event.sender.id):
+        await context.clear()
         return
 
-    bot = message.dispatcher.bot
-    await message.update_data(broadcast_message=message)
+    bot = event.bot
+    # Сохраняем само сообщение в контексте (объект MessageCreated хранить нельзя, лучше сохранить его данные)
+    # Вместо сохранения всего сообщения будем использовать прямую передачу в BroadcastService позже.
+    # Пока просто запомним, что сообщение получено, и перейдём к выбору кнопки.
+    await context.update_data(broadcast_message_received=True)
 
     users_count = await db.get_active_users_count()
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=f"✅ <b>Сообщение получено!</b>\n\n"
              f"👥 Количество получателей: <b>{users_count}</b>\n\n"
              f"Хотите добавить кнопку к сообщению?",
-        reply_markup=AdminKeyboards.broadcast_add_button(),
-        format="html"
+        attachments=[AdminKeyboards.broadcast_add_button()]
     )
-    await message.set_state(AdminStates.broadcast_message)  # остаёмся в том же состоянии для выбора
+    # Остаёмся в том же состоянии для выбора (AdminStates.broadcast_message)
+    await context.set_state(AdminStates.broadcast_message)
 
 
 # ---------- Добавление кнопки ----------
-@router.callback(F.payload == "broadcast_add_button")
-async def add_button_to_broadcast(callback: Callback):
-    """Добавление кнопки к рассылке"""
-    current_state = await callback.get_state()
-    if current_state != AdminStates.broadcast_message.full_name():
+@router.callback(Command('broadcast_add_button'))
+async def add_button_to_broadcast(event: MessageCallback, data: dict) -> None:
+    """
+    Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
+    """
+    if not is_admin(event.user.id):
+        await event.answer("❌ Нет прав")
         return
 
-    await callback.set_state(AdminStates.broadcast_button)
-    bot = callback.dispatcher.bot
+    context: MemoryContext = data.get('context')
+    if not context:
+        return
+
+    bot = event.bot
+    await context.set_state(AdminStates.broadcast_button)
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text="🔗 <b>Добавление кнопки</b>\n\n"
              "Отправьте кнопку в формате:\n"
              "<code>Текст кнопки | https://example.com</code>\n\n"
              "Пример:\n"
              "<code>Наш сайт | https://example.com</code>\n\n"
              "Для отмены введите /cancel",
-        format="html"
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
-# ---------- Получение кнопки ----------
-@router.message()
-async def receive_broadcast_button(message: Message):
-    """Получение кнопки для рассылки"""
-    current_state = await message.get_state()
-    if current_state != AdminStates.broadcast_button.full_name():
+# ---------- Получение данных кнопки ----------
+@router.message_created(AdminStates.broadcast_button)
+async def receive_broadcast_button(event: MessageCreated, data: dict) -> None:
+    """
+    Обрабатывает ввод кнопки (текст и URL).
+    """
+    context: MemoryContext = data.get('context')
+    if not context:
         return
 
-    if not is_admin(message.sender.id):
-        await message.reset_state()
+    if not is_admin(event.sender.id):
+        await context.clear()
         return
 
-    bot = message.dispatcher.bot
+    bot = event.bot
+    if not event.message.text:
+        await bot.send_message(
+            chat_id=event.chat.id,
+            text="✍️ Пожалуйста, отправьте текстовое сообщение."
+        )
+        return
+
     button_pattern = r"^(.+?)\s*\|\s*(https?://.+)$"
-    match = re.match(button_pattern, message.text.strip())
+    match = re.match(button_pattern, event.message.text.strip())
 
     if not match:
         await bot.send_message(
-            chat_id=message.chat.id,
+            chat_id=event.chat.id,
             text="❌ <b>Неверный формат кнопки!</b>\n\n"
                  "Используйте формат:\n"
                  "<code>Текст кнопки | https://example.com</code>\n\n"
                  "Попробуйте еще раз или введите /cancel для отмены",
-            format="html"
         )
         return
 
     button_text = match.group(1).strip()
     button_url = match.group(2).strip()
 
-    await message.update_data(button_text=button_text, button_url=button_url)
+    # Сохраняем кнопку в контексте
+    await context.update_data(
+        button_text=button_text,
+        button_url=button_url
+    )
 
+    # Показываем превью кнопки
     preview_keyboard = AdminKeyboards.create_custom_button(button_text, button_url)
 
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=f"✅ <b>Кнопка создана!</b>\n\n"
              f"📝 Текст: <b>{button_text}</b>\n"
              f"🔗 Ссылка: <code>{button_url}</code>\n\n"
              f"Превью кнопки:",
-        reply_markup=preview_keyboard,
-        format="html"
+        attachments=[preview_keyboard]
     )
 
     users_count = await db.get_active_users_count()
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.id,
         text=f"📤 <b>Подтверждение рассылки</b>\n\n"
              f"👥 Получателей: <b>{users_count}</b>\n"
              f"🔗 С кнопкой: <b>Да</b>\n\n"
              f"Отправить рассылку?",
-        reply_markup=AdminKeyboards.broadcast_confirm(users_count),
-        format="html"
+        attachments=[AdminKeyboards.broadcast_confirm(users_count)]
     )
+    # Не меняем состояние – остаёмся в AdminStates.broadcast_message, так как дальше подтверждение
 
 
 # ---------- Рассылка без кнопки ----------
-@router.callback(F.payload == "broadcast_no_button")
-async def broadcast_without_button(callback: Callback):
-    """Рассылка без кнопки"""
-    current_state = await callback.get_state()
-    if current_state != AdminStates.broadcast_message.full_name():
+@router.callback(Command('broadcast_no_button'))
+async def broadcast_without_button(event: MessageCallback, data: dict) -> None:
+    """
+    Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
+    """
+    if not is_admin(event.user.id):
+        await event.answer("❌ Нет прав")
         return
 
+    context: MemoryContext = data.get('context')
+    if not context:
+        return
+
+    bot = event.bot
     users_count = await db.get_active_users_count()
-    bot = callback.dispatcher.bot
 
     await bot.update_message(
-        message_id=callback.message.id,
+        message_id=event.message.id,
         text=f"📤 <b>Подтверждение рассылки</b>\n\n"
              f"👥 Получателей: <b>{users_count}</b>\n"
              f"🔗 С кнопкой: <b>Нет</b>\n\n"
              f"Отправить рассылку?",
-        reply_markup=AdminKeyboards.broadcast_confirm(users_count),
-        format="html"
+        attachments=[AdminKeyboards.broadcast_confirm(users_count)]
     )
-    await bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
 
 
 # ---------- Подтверждение рассылки ----------
-@router.callback(F.payload == "broadcast_confirm_yes")
-async def confirm_broadcast(callback: Callback):
-    """Подтверждение и запуск рассылки"""
-    if not is_admin(callback.user.id):
-        await callback.dispatcher.bot.answer_callback(callback.callback_id, "❌ Нет прав")
+@router.callback(Command('broadcast_confirm_yes'))
+async def confirm_broadcast(event: MessageCallback, data: dict) -> None:
+    """
+    Запуск рассылки.
+    """
+    if not is_admin(event.user.id):
+        await event.answer("❌ Нет прав")
         return
 
-    data = await callback.get_data()
-    broadcast_message = data.get("broadcast_message")
-    if not broadcast_message:
-        await callback.dispatcher.bot.update_message(
-            message_id=callback.message.id,
-            text="❌ Ошибка: сообщение для рассылки не найдено"
-        )
-        await callback.reset_state()
+    context: MemoryContext = data.get('context')
+    if not context:
         return
 
-    custom_keyboard = None
-    if data.get("button_text") and data.get("button_url"):
-        custom_keyboard = AdminKeyboards.create_custom_button(
-            data["button_text"],
-            data["button_url"]
-        )
+    bot = event.bot
 
-    broadcast_service = BroadcastService(callback.dispatcher.bot)
-
-    progress_msg = await callback.dispatcher.bot.update_message(
-        message_id=callback.message.id,
-        text="📤 <b>Рассылка запущена...</b>\n\n"
-             "📊 Прогресс: <b>0%</b>\n"
-             "✅ Отправлено: <b>0</b>\n"
-             "❌ Ошибок: <b>0</b>\n"
-             "🚫 Заблокировано: <b>0</b>",
-        format="html"
+    # ВРЕМЕННО: просто показываем сообщение о запуске
+    await bot.update_message(
+        message_id=event.message.id,
+        text="📤 <b>Рассылка запущена...</b> (заглушка, функционал в разработке)"
     )
-
-    async def update_progress(stats: dict):
-        progress_percent = int((stats["sent"] + stats["failed"] + stats["blocked"]) / stats["total"] * 100) if stats["total"] else 0
-        try:
-            await callback.dispatcher.bot.update_message(
-                message_id=callback.message.id,
-                text=f"📤 <b>Рассылка в процессе...</b>\n\n"
-                     f"📊 Прогресс: <b>{progress_percent}%</b>\n"
-                     f"✅ Отправлено: <b>{stats['sent']}</b>\n"
-                     f"❌ Ошибок: <b>{stats['failed']}</b>\n"
-                     f"🚫 Заблокировано: <b>{stats['blocked']}</b>",
-                format="html"
-            )
-        except Exception:
-            pass
-
-    try:
-        final_stats = await broadcast_service.send_broadcast(
-            message=broadcast_message,
-            custom_keyboard=custom_keyboard,
-            progress_callback=update_progress
-        )
-
-        success_rate = int(final_stats["sent"] / final_stats["total"] * 100) if final_stats["total"] > 0 else 0
-
-        await callback.dispatcher.bot.update_message(
-            message_id=callback.message.id,
-            text=f"✅ <b>Рассылка завершена!</b>\n\n"
-                 f"📊 <b>Итоговая статистика:</b>\n"
-                 f"👥 Всего получателей: <b>{final_stats['total']}</b>\n"
-                 f"✅ Успешно доставлено: <b>{final_stats['sent']}</b>\n"
-                 f"❌ Ошибок доставки: <b>{final_stats['failed']}</b>\n"
-                 f"🚫 Заблокировали бота: <b>{final_stats['blocked']}</b>\n"
-                 f"📈 Успешность: <b>{success_rate}%</b>",
-            format="html"
-        )
-
-    except Exception as e:
-        logger.error(f"Ошибка при рассылке: {e}")
-        await callback.dispatcher.bot.update_message(
-            message_id=callback.message.id,
-            text=f"❌ <b>Ошибка при рассылке!</b>\n\n"
-                 f"Описание: <code>{str(e)}</code>",
-            format="html"
-        )
-
-    await callback.reset_state()
-    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
+    await event.answer("")
+    await context.clear()
 
 
-# ---------- Отмена рассылки ----------
-@router.callback(F.payload == "broadcast_confirm_no")
-async def cancel_broadcast(callback: Callback):
-    """Отмена рассылки"""
-    await callback.reset_state()
-    await callback.dispatcher.bot.update_message(
-        message_id=callback.message.id,
-        text="❌ Рассылка отменена"
-    )
-    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
+@router.callback(Command('broadcast_confirm_no'))
+async def cancel_broadcast(event: MessageCallback, data: dict) -> None:
+    """
+    Отмена рассылки.
+    """
+    context: MemoryContext = data.get('context')
+    if context:
+        await context.clear()
+    await event.answer("")
+    await event.message.edit_text(text="❌ Рассылка отменена", attachments=[])
 
 
-@router.callback(F.payload == "broadcast_cancel")
-async def cancel_broadcast_creation(callback: Callback):
-    """Отмена создания рассылки"""
-    await callback.reset_state()
-    await callback.dispatcher.bot.update_message(
-        message_id=callback.message.id,
-        text="❌ Создание рассылки отменено"
-    )
-    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
+@router.callback(Command('broadcast_cancel'))
+async def cancel_broadcast_creation(event: MessageCallback, data: dict) -> None:
+    """
+    Отмена создания рассылки на любом этапе.
+    """
+    context: MemoryContext = data.get('context')
+    if context:
+        await context.clear()
+    await event.answer("")
+    await event.message.edit_text(text="❌ Создание рассылки отменено", attachments=[])
 
 
-# ---------- Команда /cancel ----------
-@router.message(F.text == "/cancel")
-async def cancel_any_state(message: Message):
-    """Отмена любого состояния"""
-    if not is_admin(message.sender.id):
+# ---------- Команда /cancel для отмены состояния ----------
+@router.message_created(Command('cancel'))
+async def cancel_any_state(event: MessageCreated, data: dict) -> None:
+    """
+    Отмена любого текущего состояния (если есть).
+    """
+    if not is_admin(event.sender.id):
         return
 
-    current_state = await message.get_state()
+    context: MemoryContext = data.get('context')
+    if not context:
+        return
+
+    current_state = await context.get_state()
     if current_state:
-        await message.reset_state()
-        await message.dispatcher.bot.send_message(
-            chat_id=message.chat.id,
-            text="❌ Операция отменена"
-        )
+        await context.clear()
+        await event.message.answer(text="❌ Операция отменена")
     else:
-        await message.dispatcher.bot.send_message(
-            chat_id=message.chat.id,
-            text="ℹ️ Нет активных операций для отмены"
-        )
+        await event.message.answer(text="ℹ️ Нет активных операций для отмены")

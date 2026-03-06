@@ -1,64 +1,59 @@
 """
-Сервис рассылки сообщений (адаптирован для maxbot – только текст)
+Сервис рассылки сообщений
+===========================
+Обеспечивает массовую отправку сообщений пользователям с учётом прогресса.
+Адаптирован для работы с maxapi: используется только текст (медиа пока не поддерживается).
 """
 
 import asyncio
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from loguru import logger
-
-from maxbot.types import Message, InlineKeyboardMarkup
 
 from app.database import db
 
 
 class BroadcastService:
-    """Сервис для рассылки сообщений (только текст и кнопки)"""
+    """
+    Сервис для рассылки сообщений (только текст и кнопки).
+    """
 
     def __init__(self, bot):
         self.bot = bot
 
     async def send_broadcast(
         self,
-        message: Message,
-        custom_keyboard: Optional[InlineKeyboardMarkup] = None,
+        text: str,
+        keyboard: Optional[Any] = None,
         progress_callback: Optional[callable] = None
     ) -> Dict[str, int]:
         """
-        Отправка рассылки всем пользователям (только текст)
+        Отправляет текстовое сообщение всем активным пользователям.
+
+        Аргументы:
+            text (str): текст сообщения.
+            keyboard (Optional[Any]): клавиатура для сообщения (будет передана в attachments).
+            progress_callback (callable, optional): функция, вызываемая после каждой пачки для обновления прогресса.
+
+        Возвращает:
+            dict: статистика отправки (total, sent, failed, blocked).
         """
         users = await db.get_active_users()
+        total = len(users)
+        stats = {"total": total, "sent": 0, "failed": 0, "blocked": 0}
 
-        stats = {
-            "total": len(users),
-            "sent": 0,
-            "failed": 0,
-            "blocked": 0
-        }
-
-        logger.info(f"Начинаем рассылку для {len(users)} пользователей")
+        logger.info(f"Начинаем рассылку для {total} пользователей")
 
         batch_size = 30
-        delay_between_batches = 1
+        delay = 1
 
-        for i in range(0, len(users), batch_size):
+        for i in range(0, total, batch_size):
             batch = users[i:i + batch_size]
-            tasks = []
-
-            for user in batch:
-                task = self._send_single_message(
-                    user_id=user.id,
-                    text=message.text,
-                    keyboard=custom_keyboard
-                )
-                tasks.append(task)
-
+            tasks = [self._send_single(user.id, text, keyboard) for user in batch]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for result in results:
-                if isinstance(result, Exception):
-                    stats["failed"] += 1
-                elif result is True:
+            for res in results:
+                if res is True:
                     stats["sent"] += 1
                 else:
                     stats["failed"] += 1
@@ -66,27 +61,24 @@ class BroadcastService:
             if progress_callback:
                 await progress_callback(stats)
 
-            if i + batch_size < len(users):
-                await asyncio.sleep(delay_between_batches)
+            if i + batch_size < total:
+                await asyncio.sleep(delay)
 
-        logger.info(f"Рассылка завершена. Отправлено: {stats['sent']}, Ошибок: {stats['failed']}, Заблокировано: {stats['blocked']}")
+        logger.info(f"Рассылка завершена: {stats}")
         return stats
 
-    async def _send_single_message(
-        self,
-        user_id: int,
-        text: str,
-        keyboard: Optional[InlineKeyboardMarkup] = None
-    ) -> bool:
+    async def _send_single(self, user_id: int, text: str, keyboard: Optional[Any]) -> bool:
         """
-        Отправка одного текстового сообщения пользователю
+        Отправляет одно сообщение конкретному пользователю.
+
+        Возвращает True при успехе, иначе False.
         """
         try:
+            attachments = [keyboard] if keyboard else []
             await self.bot.send_message(
                 chat_id=user_id,
                 text=text or " ",
-                reply_markup=keyboard,
-                format="html"  # предполагаем, что исходное сообщение могло содержать HTML
+                attachments=attachments
             )
             return True
         except Exception as e:

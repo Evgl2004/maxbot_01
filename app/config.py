@@ -1,7 +1,6 @@
 """
 Конфигурация приложения
 """
-
 import json
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -28,7 +27,7 @@ class Settings(BaseSettings):
     postgres_user: str = Field("botuser", alias="POSTGRES_USER")
     postgres_password: str = Field("", alias="POSTGRES_PASSWORD")
 
-    # Redis settings (для будущего FSM)
+    # Redis settings
     redis_host: str = Field("localhost", alias="REDIS_HOST")
     redis_port: int = Field(6379, alias="REDIS_PORT")
     redis_db: int = Field(0, alias="REDIS_DB")
@@ -49,6 +48,7 @@ class Settings(BaseSettings):
 
     @field_validator('admin_user_ids', mode='before')
     def parse_admin_ids(cls, v):
+        """Парсим список админов из JSON или строки с запятыми"""
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
@@ -62,16 +62,20 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        """Формирование URL для подключения к базе данных"""
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
     @property
     def redis_url(self) -> str:
+        """Формирование URL для подключения к Redis"""
         if self.redis_password:
             return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     def is_admin(self, user_id: int) -> bool:
+        """Проверка, является ли пользователь админом"""
         return user_id in self.admin_user_ids
 
 
+# Создаем глобальный экземпляр настроек
 settings = Settings()

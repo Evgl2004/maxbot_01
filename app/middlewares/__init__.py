@@ -1,18 +1,26 @@
 """
-Middlewares package
+Пакет промежуточных обработчиков (middleware)
+===============================================
+Здесь собираются все middleware, которые будут подключены к диспетчеру.
+Функция setup_middlewares добавляет их в глобальный список диспетчера.
 """
-from aiogram import Dispatcher
 
+from maxapi.dispatcher import Dispatcher
+
+# Импортируем сами классы middleware
 from .logging import LoggingMiddleware
-from .user import UserMiddleware
+from .user import UserSaveMiddleware
 
 
 def setup_middlewares(dp: Dispatcher) -> None:
-    """Настройка всех middleware"""
-    # Middleware для логирования
-    dp.message.middleware(LoggingMiddleware())
-    dp.callback_query.middleware(LoggingMiddleware())
-    
-    # Middleware для пользователей
-    dp.message.middleware(UserMiddleware())
-    dp.callback_query.middleware(UserMiddleware())
+    """
+    🛠️ Подключает все необходимые middleware к диспетчеру.
+
+    Аргументы:
+        dp (Dispatcher): экземпляр диспетчера, в который добавляются middleware.
+    """
+    # Список middleware, которые будут выполняться последовательно
+    dp.middlewares = [
+        LoggingMiddleware(),   # логирование всех событий
+        UserSaveMiddleware(),  # автоматическое сохранение пользователя
+    ]
