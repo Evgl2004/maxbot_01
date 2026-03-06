@@ -5,7 +5,7 @@
 для их регистрации в диспетчере.
 """
 
-from aiogram import Dispatcher
+from maxbot.dispatcher import Dispatcher
 
 # Импортируем роутеры из всех модулей
 from .start import router as start_router
@@ -25,6 +25,7 @@ def setup_routers(dp: Dispatcher) -> None:
     Args:
         dp (Dispatcher): Диспетчер бота для регистрации роутеров
     """
+
     # Регистрируем роутеры в порядке приоритета
     dp.include_router(start_router)           # Роутер команды /start
     dp.include_router(help_router)              # Роутер команды /help

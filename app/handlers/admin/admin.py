@@ -3,11 +3,11 @@
 """
 
 import re
-from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command, StateFilter
-from aiogram.fsm.context import FSMContext
 from loguru import logger
+
+from maxbot.router import Router
+from maxbot.types import Message, Callback
+from maxbot.filters import F
 
 from app.config import settings
 from app.database import db
@@ -23,27 +23,26 @@ def is_admin(user_id: int) -> bool:
     return settings.is_admin(user_id)
 
 
-@router.message(Command("admin"))
-async def admin_command(message: Message, bot: Bot):
+# ---------- Команда /admin ----------
+@router.message(F.text == "/admin")
+async def admin_command(message: Message):
     """Обработчик команды /admin"""
-    if not is_admin(message.from_user.id):
-        await message.answer("❌ У вас нет прав администратора")
+    if not is_admin(message.sender.id):
+        await message.dispatcher.bot.send_message(
+            chat_id=message.chat.id,
+            text="❌ У вас нет прав администратора"
+        )
         return
-    
-    # Получаем статистику бота
+
+    bot = message.dispatcher.bot
     stats = await db.get_bot_stats()
     if not stats:
-        # Если статистики нет, создаем её
         stats = await db.update_bot_stats()
-    
-    # Получаем актуальные данные
+
     total_users = await db.get_users_count()
     active_users = await db.get_active_users_count()
-    
-    # Форматируем время последнего запуска
     last_restart = stats.last_restart.strftime("%d.%m.%Y %H:%M:%S")
-    
-    # Формируем сообщение со статистикой
+
     text = (
         f"🔧 <b>Админская панель</b>\n\n"
         f"📊 <b>Статистика бота:</b>\n"
@@ -53,245 +52,291 @@ async def admin_command(message: Message, bot: Bot):
         f"🕐 Последний запуск: <b>{last_restart}</b>\n\n"
         f"Выберите действие:"
     )
-    await message.answer(
+    await bot.send_message(
+        chat_id=message.chat.id,
         text=text,
-        reply_markup=AdminKeyboards.main_admin_menu()
+        reply_markup=AdminKeyboards.main_admin_menu(),
+        format="html"
     )
 
 
-@router.callback_query(F.data == "admin_broadcast")
-async def start_broadcast(callback: CallbackQuery, state: FSMContext):
+# ---------- Начало рассылки ----------
+@router.callback(F.payload == "admin_broadcast")
+async def start_broadcast(callback: Callback):
     """Начало создания рассылки"""
-    if not is_admin(callback.from_user.id):
-        await callback.answer("❌ У вас нет прав администратора")
+    if not is_admin(callback.user.id):
+        await callback.dispatcher.bot.answer_callback(callback.callback_id, "❌ Нет прав")
         return
-    
-    await state.set_state(AdminStates.broadcast_message)
-    
-    await callback.message.edit_text(
-        "📤 <b>Создание рассылки</b>\n\n"
-        "Отправьте сообщение любого типа (текст, фото, видео, документ и т.д.), "
-        "которое хотите разослать всем пользователям бота.\n\n"
-        "Для отмены введите /cancel"
+
+    await callback.set_state(AdminStates.broadcast_message)
+    bot = callback.dispatcher.bot
+
+    await bot.update_message(
+        message_id=callback.message.id,
+        text="📤 <b>Создание рассылки</b>\n\n"
+             "Отправьте сообщение любого типа (текст, фото, видео, документ и т.д.), "
+             "которое хотите разослать всем пользователям бота.\n\n"
+             "Для отмены введите /cancel",
+        format="html"
     )
-    
-    await callback.answer()
+    await bot.answer_callback(callback.callback_id, "")
 
 
-@router.message(StateFilter(AdminStates.broadcast_message))
-async def receive_broadcast_message(message: Message, state: FSMContext):
+# ---------- Получение сообщения для рассылки ----------
+@router.message()
+async def receive_broadcast_message(message: Message):
     """Получение сообщения для рассылки"""
-    if not is_admin(message.from_user.id):
-        await state.clear()
+    current_state = await message.get_state()
+    if current_state != AdminStates.broadcast_message.full_name():
         return
-    
-    # Сохраняем сообщение в состояние
-    await state.update_data(broadcast_message=message)
-    
-    # Получаем количество пользователей для рассылки
+
+    if not is_admin(message.sender.id):
+        await message.reset_state()
+        return
+
+    bot = message.dispatcher.bot
+    await message.update_data(broadcast_message=message)
+
     users_count = await db.get_active_users_count()
-    
-    await message.answer(
-        f"✅ <b>Сообщение получено!</b>\n\n"
-        f"👥 Количество получателей: <b>{users_count}</b>\n\n"
-        f"Хотите добавить кнопку к сообщению?",
-        reply_markup=AdminKeyboards.broadcast_add_button()
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=f"✅ <b>Сообщение получено!</b>\n\n"
+             f"👥 Количество получателей: <b>{users_count}</b>\n\n"
+             f"Хотите добавить кнопку к сообщению?",
+        reply_markup=AdminKeyboards.broadcast_add_button(),
+        format="html"
     )
+    await message.set_state(AdminStates.broadcast_message)  # остаёмся в том же состоянии для выбора
 
 
-@router.callback_query(F.data == "broadcast_add_button", StateFilter(AdminStates.broadcast_message))
-async def add_button_to_broadcast(callback: CallbackQuery, state: FSMContext):
+# ---------- Добавление кнопки ----------
+@router.callback(F.payload == "broadcast_add_button")
+async def add_button_to_broadcast(callback: Callback):
     """Добавление кнопки к рассылке"""
-    await state.set_state(AdminStates.broadcast_button)
-    
-    await callback.message.edit_text(
-        "🔗 <b>Добавление кнопки</b>\n\n"
-        "Отправьте кнопку в формате:\n"
-        "<code>Текст кнопки | https://example.com</code>\n\n"
-        "Пример:\n"
-        "<code>Наш сайт | https://example.com</code>\n\n"
-        "Для отмены введите /cancel"
-    )
-    
-    await callback.answer()
-
-
-@router.message(StateFilter(AdminStates.broadcast_button))
-async def receive_broadcast_button(message: Message, state: FSMContext):
-    """Получение кнопки для рассылки"""
-    if not is_admin(message.from_user.id):
-        await state.clear()
+    current_state = await callback.get_state()
+    if current_state != AdminStates.broadcast_message.full_name():
         return
-    
-    # Парсим кнопку
+
+    await callback.set_state(AdminStates.broadcast_button)
+    bot = callback.dispatcher.bot
+
+    await bot.update_message(
+        message_id=callback.message.id,
+        text="🔗 <b>Добавление кнопки</b>\n\n"
+             "Отправьте кнопку в формате:\n"
+             "<code>Текст кнопки | https://example.com</code>\n\n"
+             "Пример:\n"
+             "<code>Наш сайт | https://example.com</code>\n\n"
+             "Для отмены введите /cancel",
+        format="html"
+    )
+    await bot.answer_callback(callback.callback_id, "")
+
+
+# ---------- Получение кнопки ----------
+@router.message()
+async def receive_broadcast_button(message: Message):
+    """Получение кнопки для рассылки"""
+    current_state = await message.get_state()
+    if current_state != AdminStates.broadcast_button.full_name():
+        return
+
+    if not is_admin(message.sender.id):
+        await message.reset_state()
+        return
+
+    bot = message.dispatcher.bot
     button_pattern = r"^(.+?)\s*\|\s*(https?://.+)$"
     match = re.match(button_pattern, message.text.strip())
-    
+
     if not match:
-        await message.answer(
-            "❌ <b>Неверный формат кнопки!</b>\n\n"
-            "Используйте формат:\n"
-            "<code>Текст кнопки | https://example.com</code>\n\n"
-            "Попробуйте еще раз или введите /cancel для отмены"
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text="❌ <b>Неверный формат кнопки!</b>\n\n"
+                 "Используйте формат:\n"
+                 "<code>Текст кнопки | https://example.com</code>\n\n"
+                 "Попробуйте еще раз или введите /cancel для отмены",
+            format="html"
         )
         return
-    
+
     button_text = match.group(1).strip()
     button_url = match.group(2).strip()
-    
-    # Сохраняем данные кнопки
-    await state.update_data(
-        button_text=button_text,
-        button_url=button_url
-    )
-    
-    # Создаем превью кнопки
+
+    await message.update_data(button_text=button_text, button_url=button_url)
+
     preview_keyboard = AdminKeyboards.create_custom_button(button_text, button_url)
-    
-    await message.answer(
-        f"✅ <b>Кнопка создана!</b>\n\n"
-        f"📝 Текст: <b>{button_text}</b>\n"
-        f"🔗 Ссылка: <code>{button_url}</code>\n\n"
-        f"Превью кнопки:",
-        reply_markup=preview_keyboard
+
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=f"✅ <b>Кнопка создана!</b>\n\n"
+             f"📝 Текст: <b>{button_text}</b>\n"
+             f"🔗 Ссылка: <code>{button_url}</code>\n\n"
+             f"Превью кнопки:",
+        reply_markup=preview_keyboard,
+        format="html"
     )
-    
-    # Переходим к подтверждению
+
     users_count = await db.get_active_users_count()
-    
-    await message.answer(
-        f"📤 <b>Подтверждение рассылки</b>\n\n"
-        f"👥 Получателей: <b>{users_count}</b>\n"
-        f"🔗 С кнопкой: <b>Да</b>\n\n"
-        f"Отправить рассылку?",
-        reply_markup=AdminKeyboards.broadcast_confirm(users_count)
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=f"📤 <b>Подтверждение рассылки</b>\n\n"
+             f"👥 Получателей: <b>{users_count}</b>\n"
+             f"🔗 С кнопкой: <b>Да</b>\n\n"
+             f"Отправить рассылку?",
+        reply_markup=AdminKeyboards.broadcast_confirm(users_count),
+        format="html"
     )
 
 
-@router.callback_query(F.data == "broadcast_no_button", StateFilter(AdminStates.broadcast_message))
-async def broadcast_without_button(callback: CallbackQuery, state: FSMContext):
+# ---------- Рассылка без кнопки ----------
+@router.callback(F.payload == "broadcast_no_button")
+async def broadcast_without_button(callback: Callback):
     """Рассылка без кнопки"""
+    current_state = await callback.get_state()
+    if current_state != AdminStates.broadcast_message.full_name():
+        return
+
     users_count = await db.get_active_users_count()
-    
-    await callback.message.edit_text(
-        f"📤 <b>Подтверждение рассылки</b>\n\n"
-        f"👥 Получателей: <b>{users_count}</b>\n"
-        f"🔗 С кнопкой: <b>Нет</b>\n\n"
-        f"Отправить рассылку?",
-        reply_markup=AdminKeyboards.broadcast_confirm(users_count)
+    bot = callback.dispatcher.bot
+
+    await bot.update_message(
+        message_id=callback.message.id,
+        text=f"📤 <b>Подтверждение рассылки</b>\n\n"
+             f"👥 Получателей: <b>{users_count}</b>\n"
+             f"🔗 С кнопкой: <b>Нет</b>\n\n"
+             f"Отправить рассылку?",
+        reply_markup=AdminKeyboards.broadcast_confirm(users_count),
+        format="html"
     )
-    
-    await callback.answer()
+    await bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback_query(F.data == "broadcast_confirm_yes")
-async def confirm_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot):
+# ---------- Подтверждение рассылки ----------
+@router.callback(F.payload == "broadcast_confirm_yes")
+async def confirm_broadcast(callback: Callback):
     """Подтверждение и запуск рассылки"""
-    if not is_admin(callback.from_user.id):
-        await callback.answer("❌ У вас нет прав администратора")
+    if not is_admin(callback.user.id):
+        await callback.dispatcher.bot.answer_callback(callback.callback_id, "❌ Нет прав")
         return
-    
-    data = await state.get_data()
+
+    data = await callback.get_data()
     broadcast_message = data.get("broadcast_message")
-    
     if not broadcast_message:
-        await callback.message.edit_text("❌ Ошибка: сообщение для рассылки не найдено")
-        await state.clear()
+        await callback.dispatcher.bot.update_message(
+            message_id=callback.message.id,
+            text="❌ Ошибка: сообщение для рассылки не найдено"
+        )
+        await callback.reset_state()
         return
-    
-    # Создаем кнопку если есть
+
     custom_keyboard = None
     if data.get("button_text") and data.get("button_url"):
         custom_keyboard = AdminKeyboards.create_custom_button(
             data["button_text"],
             data["button_url"]
         )
-    
-    # Начинаем рассылку
-    broadcast_service = BroadcastService(bot)
-    
-    # Сообщение о начале рассылки
-    progress_message = await callback.message.edit_text(
-        "📤 <b>Рассылка запущена...</b>\n\n"
-        "📊 Прогресс: <b>0%</b>\n"
-        "✅ Отправлено: <b>0</b>\n"
-        "❌ Ошибок: <b>0</b>\n"
-        "🚫 Заблокировано: <b>0</b>"
+
+    broadcast_service = BroadcastService(callback.dispatcher.bot)
+
+    progress_msg = await callback.dispatcher.bot.update_message(
+        message_id=callback.message.id,
+        text="📤 <b>Рассылка запущена...</b>\n\n"
+             "📊 Прогресс: <b>0%</b>\n"
+             "✅ Отправлено: <b>0</b>\n"
+             "❌ Ошибок: <b>0</b>\n"
+             "🚫 Заблокировано: <b>0</b>",
+        format="html"
     )
-    
-    # Функция для обновления прогресса
+
     async def update_progress(stats: dict):
-        progress_percent = int((stats["sent"] + stats["failed"] + stats["blocked"]) / stats["total"] * 100)
-        
+        progress_percent = int((stats["sent"] + stats["failed"] + stats["blocked"]) / stats["total"] * 100) if stats["total"] else 0
         try:
-            await progress_message.edit_text(
-                f"📤 <b>Рассылка в процессе...</b>\n\n"
-                f"📊 Прогресс: <b>{progress_percent}%</b>\n"
-                f"✅ Отправлено: <b>{stats['sent']}</b>\n"
-                f"❌ Ошибок: <b>{stats['failed']}</b>\n"
-                f"🚫 Заблокировано: <b>{stats['blocked']}</b>"
+            await callback.dispatcher.bot.update_message(
+                message_id=callback.message.id,
+                text=f"📤 <b>Рассылка в процессе...</b>\n\n"
+                     f"📊 Прогресс: <b>{progress_percent}%</b>\n"
+                     f"✅ Отправлено: <b>{stats['sent']}</b>\n"
+                     f"❌ Ошибок: <b>{stats['failed']}</b>\n"
+                     f"🚫 Заблокировано: <b>{stats['blocked']}</b>",
+                format="html"
             )
         except Exception:
-            # Игнорируем ошибки обновления прогресса
             pass
-    
-    # Запускаем рассылку
+
     try:
         final_stats = await broadcast_service.send_broadcast(
             message=broadcast_message,
             custom_keyboard=custom_keyboard,
             progress_callback=update_progress
         )
-        
-        # Финальная статистика
+
         success_rate = int(final_stats["sent"] / final_stats["total"] * 100) if final_stats["total"] > 0 else 0
-        
-        await progress_message.edit_text(
-            f"✅ <b>Рассылка завершена!</b>\n\n"
-            f"📊 <b>Итоговая статистика:</b>\n"
-            f"👥 Всего получателей: <b>{final_stats['total']}</b>\n"
-            f"✅ Успешно доставлено: <b>{final_stats['sent']}</b>\n"
-            f"❌ Ошибок доставки: <b>{final_stats['failed']}</b>\n"
-            f"🚫 Заблокировали бота: <b>{final_stats['blocked']}</b>\n"
-            f"📈 Успешность: <b>{success_rate}%</b>"
+
+        await callback.dispatcher.bot.update_message(
+            message_id=callback.message.id,
+            text=f"✅ <b>Рассылка завершена!</b>\n\n"
+                 f"📊 <b>Итоговая статистика:</b>\n"
+                 f"👥 Всего получателей: <b>{final_stats['total']}</b>\n"
+                 f"✅ Успешно доставлено: <b>{final_stats['sent']}</b>\n"
+                 f"❌ Ошибок доставки: <b>{final_stats['failed']}</b>\n"
+                 f"🚫 Заблокировали бота: <b>{final_stats['blocked']}</b>\n"
+                 f"📈 Успешность: <b>{success_rate}%</b>",
+            format="html"
         )
-        
+
     except Exception as e:
         logger.error(f"Ошибка при рассылке: {e}")
-        await progress_message.edit_text(
-            f"❌ <b>Ошибка при рассылке!</b>\n\n"
-            f"Описание: <code>{str(e)}</code>"
+        await callback.dispatcher.bot.update_message(
+            message_id=callback.message.id,
+            text=f"❌ <b>Ошибка при рассылке!</b>\n\n"
+                 f"Описание: <code>{str(e)}</code>",
+            format="html"
         )
-    
-    await state.clear()
-    await callback.answer()
+
+    await callback.reset_state()
+    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback_query(F.data == "broadcast_confirm_no")
-async def cancel_broadcast(callback: CallbackQuery, state: FSMContext):
+# ---------- Отмена рассылки ----------
+@router.callback(F.payload == "broadcast_confirm_no")
+async def cancel_broadcast(callback: Callback):
     """Отмена рассылки"""
-    await state.clear()
-    await callback.message.edit_text("❌ Рассылка отменена")
-    await callback.answer()
+    await callback.reset_state()
+    await callback.dispatcher.bot.update_message(
+        message_id=callback.message.id,
+        text="❌ Рассылка отменена"
+    )
+    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback_query(F.data == "broadcast_cancel")
-async def cancel_broadcast_creation(callback: CallbackQuery, state: FSMContext):
+@router.callback(F.payload == "broadcast_cancel")
+async def cancel_broadcast_creation(callback: Callback):
     """Отмена создания рассылки"""
-    await state.clear()
-    await callback.message.edit_text("❌ Создание рассылки отменено")
-    await callback.answer()
+    await callback.reset_state()
+    await callback.dispatcher.bot.update_message(
+        message_id=callback.message.id,
+        text="❌ Создание рассылки отменено"
+    )
+    await callback.dispatcher.bot.answer_callback(callback.callback_id, "")
 
 
-@router.message(Command("cancel"))
-async def cancel_any_state(message: Message, state: FSMContext):
+# ---------- Команда /cancel ----------
+@router.message(F.text == "/cancel")
+async def cancel_any_state(message: Message):
     """Отмена любого состояния"""
-    if not is_admin(message.from_user.id):
+    if not is_admin(message.sender.id):
         return
-    
-    current_state = await state.get_state()
+
+    current_state = await message.get_state()
     if current_state:
-        await state.clear()
-        await message.answer("❌ Операция отменена")
+        await message.reset_state()
+        await message.dispatcher.bot.send_message(
+            chat_id=message.chat.id,
+            text="❌ Операция отменена"
+        )
     else:
-        await message.answer("ℹ️ Нет активных операций для отмены")
+        await message.dispatcher.bot.send_message(
+            chat_id=message.chat.id,
+            text="ℹ️ Нет активных операций для отмены"
+        )
