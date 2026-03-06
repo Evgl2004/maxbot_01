@@ -1,22 +1,25 @@
 """
 Обработчики команд помощи и информации
 """
-from aiogram import Router, types
-from aiogram.filters import Command
+
 from loguru import logger
+
+from maxbot.router import Router
+from maxbot.types import Message
+from maxbot.filters import F
 
 from app.config import settings
 
-router = Router(name="help")
+router = Router()
 
 
-@router.message(Command("help"))
-async def help_command(message: types.Message) -> None:
+@router.message(F.text == "/help")
+async def help_command(message: Message):
     """Обработчик команды /help"""
-    user = message.from_user
-    
+    user = message.sender
     logger.info(f"ℹ️ User {user.id} requested help")
-    
+    bot = message.dispatcher.bot
+
     help_text = (
         f"🆘 <b>Помощь по боту</b>\n\n"
         f"📋 <b>Доступные команды:</b>\n"
@@ -24,30 +27,36 @@ async def help_command(message: types.Message) -> None:
         f"• /help - Показать эту справку\n"
         f"• /status - Проверить статус бота\n\n"
         f"🔧 <b>Технические детали:</b>\n"
-        f"• Версия Aiogram: 3.20.0\n"
         f"• Среда: {settings.env}\n"
         f"• Контейнеризация: Docker\n\n"
         f"💬 Если у вас есть вопросы, обращайтесь к разработчику."
     )
-    
-    await message.answer(help_text)
+
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=help_text,
+        format="html"
+    )
 
 
-@router.message(Command("status"))
-async def status_command(message: types.Message) -> None:
+@router.message(F.text == "/status")
+async def status_command(message: Message):
     """Обработчик команды /status"""
-    user = message.from_user
-    
+    user = message.sender
     logger.info(f"📊 User {user.id} requested status")
-    
+    bot = message.dispatcher.bot
+
     status_text = (
         f"📊 <b>Статус бота</b>\n\n"
         f"✅ Бот активен и работает\n"
         f"🏠 Среда: <code>{settings.env}</code>\n"
         f"🗄️ База данных: Подключена\n"
         f"🚀 Redis: Подключен\n"
-        f"📡 API Telegram: Доступен\n\n"
-        f"⏰ Время проверки: {message.date.strftime('%H:%M:%S %d.%m.%Y')}"
+        f"⏰ Время проверки: {message.chat.id}"  # В maxbot нет message.date, можно использовать текущее время
     )
-    
-    await message.answer(status_text)
+
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=status_text,
+        format="html"
+    )
