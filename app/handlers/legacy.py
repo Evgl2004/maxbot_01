@@ -84,9 +84,9 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback], context:
     Если список пуст – переходит к показу анкеты (show_profile_review).
 
     Аргументы:
-        event: событие (сообщение или callback), используемое для отправки ответа.
-        context: контекст FSM для сохранения данных и смены состояния.
-        missing_fields: список недостающих полей.
+        event: событие (сообщение или callback), используемое для отправки ответа
+        context: контекст FSM для сохранения данных и смены состояния
+        missing_fields: список недостающих полей
     """
     if not missing_fields:
         # Все поля заполнены – показываем анкету
@@ -149,8 +149,8 @@ async def start_legacy_upgrade(message: MessageCreated, user):
     Вызывается из start.py, когда обнаружен пользователь с is_legacy=True.
 
     Аргументы:
-        message (MessageCreated): событие, инициировавшее старт.
-        user: объект пользователя из БД.
+        message (MessageCreated): событие, инициировавшее старт
+        user: объект пользователя из БД
     """
     logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.id} (is_legacy={user.is_legacy})")
     bot = message.bot
@@ -175,7 +175,7 @@ async def start_legacy_upgrade(message: MessageCreated, user):
 
 
 # ---------- Обработчики состояний ----------
-@router.callback(LegacyUpgrade.waiting_for_rules_consent)
+@router.message_callback(LegacyUpgrade.waiting_for_rules_consent)
 async def process_rules_accept(event: MessageCallback, data: dict) -> None:
     """
     Обработчик нажатия кнопки «Согласен» на правилах.
@@ -286,7 +286,7 @@ async def process_field_input(event: MessageCreated, data: dict) -> None:
 
 
 # ---------- Обработка выбора пола (inline) ----------
-@router.callback(LegacyUpgrade.waiting_for_field)
+@router.message_callback(LegacyUpgrade.waiting_for_field)
 async def process_gender_input(event: MessageCallback, data: dict) -> None:
     """
     Обрабатывает нажатие на кнопки выбора пола (мужской/женский) в состоянии ожидания поля.
@@ -314,7 +314,7 @@ async def process_gender_input(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Подтверждение анкеты ----------
-@router.callback(LegacyUpgrade.waiting_for_review)
+@router.message_callback(LegacyUpgrade.waiting_for_review)
 async def process_review_correct(event: MessageCallback, data: dict) -> None:
     """
     Пользователь подтвердил, что данные верны. Переходим к согласию на уведомления.
@@ -340,7 +340,7 @@ async def process_review_correct(event: MessageCallback, data: dict) -> None:
     await context.set_state(LegacyUpgrade.waiting_for_notifications_consent)
 
 
-@router.callback(LegacyUpgrade.waiting_for_review)
+@router.message_callback(LegacyUpgrade.waiting_for_review)
 async def process_review_edit(event: MessageCallback, data: dict) -> None:
     """
     Пользователь хочет что-то изменить. Показываем меню выбора поля для редактирования.
@@ -362,7 +362,7 @@ async def process_review_edit(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Редактирование ----------
-@router.callback(LegacyUpgrade.waiting_for_edit_choice)
+@router.message_callback(LegacyUpgrade.waiting_for_edit_choice)
 async def process_edit_choice(event: MessageCallback, data: dict) -> None:
     """
     Обрабатывает выбор пользователя в меню редактирования.
@@ -474,7 +474,7 @@ async def process_edit_field(event: MessageCreated, data: dict) -> None:
     await show_profile_review(event, context, target_state=LegacyUpgrade.waiting_for_review)
 
 
-@router.callback(LegacyUpgrade.waiting_for_edit_field)
+@router.message_callback(LegacyUpgrade.waiting_for_edit_field)
 async def process_edit_gender(event: MessageCallback, data: dict) -> None:
     """
     Обрабатывает выбор нового пола при редактировании.
@@ -495,7 +495,7 @@ async def process_edit_gender(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Согласие на уведомления ----------
-@router.callback(LegacyUpgrade.waiting_for_notifications_consent)
+@router.message_callback(LegacyUpgrade.waiting_for_notifications_consent)
 async def process_notifications_consent(event: MessageCallback, data: dict) -> None:
     """
     Обрабатывает выбор пользователя по согласию на уведомления.
@@ -537,7 +537,7 @@ async def process_notifications_consent(event: MessageCallback, data: dict) -> N
 
 
 # ---------- Повторная попытка iiko ----------
-@router.callback(LegacyUpgrade.waiting_for_iiko_registration)
+@router.message_callback(LegacyUpgrade.waiting_for_iiko_registration)
 async def retry_iiko_registration(event: MessageCallback, data: dict) -> None:
     """
     Повторная попытка синхронизации с iiko при ошибке.

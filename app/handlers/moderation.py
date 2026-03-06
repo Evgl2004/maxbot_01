@@ -109,7 +109,7 @@ async def moderator_menu(event: MessageCreated) -> None:
     )
 
 
-@router.callback(Command('mod_main'))
+@router.message_callback(Command('mod_main'))
 async def mod_main_callback(event: MessageCallback) -> None:
     """
     Главное меню модератора (callback).
@@ -139,7 +139,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
 
 
 # ---------- Список тикетов ----------
-@router.callback(Command('mod_tickets'))
+@router.message_callback(Command('mod_tickets'))
 async def mod_tickets_list(event: MessageCallback) -> None:
     """
     Обработчик кнопки «Все тикеты» – показывает первую страницу списка.
@@ -171,9 +171,9 @@ async def mod_tickets_list(event: MessageCallback) -> None:
     await event.answer("")
 
 
-@router.callback(Command('mod_tickets_all'))
-@router.callback(Command('mod_tickets_open'))
-@router.callback(Command('mod_tickets_progress'))
+@router.message_callback(Command('mod_tickets_all'))
+@router.message_callback(Command('mod_tickets_open'))
+@router.message_callback(Command('mod_tickets_progress'))
 async def mod_tickets_filtered(event: MessageCallback, data: dict) -> None:
     """
     Обработчик для отображения списка тикетов с фильтром.
@@ -227,9 +227,9 @@ async def mod_tickets_filtered(event: MessageCallback, data: dict) -> None:
     await event.answer("")
 
 
-@router.callback(Command('mod_tickets_page_all'))
-@router.callback(Command('mod_tickets_page_open'))
-@router.callback(Command('mod_tickets_page_progress'))
+@router.message_callback(Command('mod_tickets_page_all'))
+@router.message_callback(Command('mod_tickets_page_open'))
+@router.message_callback(Command('mod_tickets_page_progress'))
 async def mod_tickets_page_filtered(event: MessageCallback, data: dict) -> None:
     """
     Обработчик переключения страниц списка тикетов с фильтром.
@@ -295,7 +295,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Детали тикета ----------
-@router.callback(Command('mod_ticket_'))
+@router.message_callback(Command('mod_ticket_'))
 async def mod_ticket_details(event: MessageCallback, data: dict) -> None:
     """
     Показывает детальную информацию по тикету.
@@ -337,7 +337,7 @@ async def mod_ticket_details(event: MessageCallback, data: dict) -> None:
 
 
 # ---------- Ответ на тикет ----------
-@router.callback(Command('mod_reply_'))
+@router.message_callback(Command('mod_reply_'))
 async def mod_reply_to_ticket(event: MessageCallback, data: dict) -> None:
     """
     Начало ответа на тикет (устанавливает состояние).
@@ -454,7 +454,7 @@ async def mod_send_reply(event: MessageCreated, data: dict) -> None:
 
 
 # ---------- Закрытие тикета ----------
-@router.callback(Command('mod_close_'))
+@router.message_callback(Command('mod_close_'))
 async def mod_close_ticket(event: MessageCallback) -> None:
     """
     Закрывает тикет (устанавливает статус 'closed').
