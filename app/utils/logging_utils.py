@@ -11,10 +11,10 @@ def log_event(event):
     if isinstance(event, Message):
         user = event.sender
         text = event.text[:50] if event.text else 'No text'
-        logger.info(f"📥 Message from {user.id} (@{user.username}): '{text}'")
+        logger.info(f"📥 Message from {user.id} ({user.name}): '{text}'")
     elif isinstance(event, Callback):
         user = event.user
-        logger.info(f"🔘 Callback from {user.id} (@{user.username}): '{event.payload}'")
+        logger.info(f"🔘 Callback from {user.id} ({user.name}): '{event.payload}'")
     # Можно добавить обработку bot_started, если нужно
 
 
