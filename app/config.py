@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     bot_username: str = Field("", alias="BOT_USERNAME")
 
     # iiko settings
-    iiko_api_key: str = Field("", alias="IIKO_API_KEY")
-    default_org_id: str = Field("73cbeaf9-b885-470f-b674-5bea708dd39f", alias="DEFAULT_ORG_ID")
+    IIKO_API_KEY: str = Field("", alias="IIKO_API_KEY")
+    DEFAULT_ORG_ID: str = Field("73cbeaf9-b885-470f-b674-5bea708dd39f", alias="DEFAULT_ORG_ID")
 
     # Admin settings
     admin_user_ids: list[int] = Field(default_factory=list, alias="ADMIN_USER_IDS")
