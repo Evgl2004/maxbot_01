@@ -5,7 +5,8 @@ import asyncio
 import sys
 from loguru import logger
 
-from maxbot import Bot, Dispatcher
+from maxbot.bot import Bot
+from maxbot.dispatcher import Dispatcher
 
 from app.config import settings
 from app.handlers import setup_routers
