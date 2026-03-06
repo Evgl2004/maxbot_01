@@ -64,7 +64,7 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
     await event.answer("Спасибо! Правила приняты.")
 
     await event.message.edit_text(
-        text=event.message.text,
+        text=event.message.body.text,          # <-- исправлено
         attachments=[]
     )
 
@@ -83,14 +83,12 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
     Извлекает номер телефона из VCF-вложения, сохраняет в БД и переводит
     пользователя в состояние ожидания имени.
     """
-    # 1. Проверяем наличие вложений
     if not event.message.body.attachments:
         await event.message.answer(
             text="📱 Пожалуйста, нажмите кнопку «Поделиться контактом» на клавиатуре."
         )
         return
 
-    # 2. Ищем вложение типа contact
     contact_att = next(
         (att for att in event.message.body.attachments if att.type == "contact"),
         None
@@ -101,7 +99,6 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
-    # 3. Извлекаем номер из VCF
     phone = None
     if hasattr(contact_att, 'payload') and hasattr(contact_att.payload, 'vcf_info'):
         phone = extract_phone_from_vcf(contact_att.payload.vcf_info)
@@ -113,16 +110,13 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
-    # 4. Приводим номер к формату с '+'
     if not phone.startswith('+'):
         phone = '+' + phone
 
-    # 5. Сохраняем в БД
     user_id = event.from_user.user_id
     await db.update_user(user_id, phone_number=phone)
     logger.info(f"✅ Пользователь {user_id} отправил контакт, номер сохранён: {phone}")
 
-    # 6. Переходим к следующему шагу
     await event.message.answer(
         text="✅ Спасибо! Номер телефона сохранён.\n\n"
              "✍️ Теперь, пожалуйста, напишите ваше имя."
@@ -132,14 +126,14 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
 
 @router.message_created(Registration.waiting_for_first_name)
 async def process_first_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите имя текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    first_name_text = event.message.text.strip()
+    first_name_text = event.message.body.text.strip()    # <-- исправлено
     logger.info(f"👤 Пользователь user_id={user_id} вводит имя: '{first_name_text}'")
 
     is_valid, error_message = await validate_first_name(first_name_text)
@@ -158,14 +152,14 @@ async def process_first_name(event: MessageCreated, context: MemoryContext) -> N
 
 @router.message_created(Registration.waiting_for_last_name)
 async def process_last_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите фамилию текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    last_name_text = event.message.text.strip()
+    last_name_text = event.message.body.text.strip()    # <-- исправлено
     logger.info(f"👤 Пользователь user_id={user_id} вводит фамилию: '{last_name_text}'")
 
     is_valid, error_message = await validate_last_name(last_name_text)
@@ -197,7 +191,7 @@ async def process_gender(event: MessageCallback, context: MemoryContext) -> None
 
     await event.answer("")
     await event.message.edit_text(
-        text=event.message.text,
+        text=event.message.body.text,          # <-- исправлено
         attachments=[]
     )
 
@@ -209,14 +203,14 @@ async def process_gender(event: MessageCallback, context: MemoryContext) -> None
 
 @router.message_created(Registration.waiting_for_birth_date)
 async def process_birth_date(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите дату текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    text = event.message.text.strip()
+    text = event.message.body.text.strip()                # <-- исправлено
     logger.info(f"👤 Пользователь user_id={user_id} вводит дату рождения: '{text}'")
 
     is_valid, error_message = await validate_birth_date(text)
@@ -237,14 +231,14 @@ async def process_birth_date(event: MessageCreated, context: MemoryContext) -> N
 
 @router.message_created(Registration.waiting_for_email)
 async def process_email(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(
             text="✍️ Пожалуйста, введите почту текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    email = event.message.text.strip()
+    email = event.message.body.text.strip()               # <-- исправлено
     logger.info(f"👤 Пользователь user_id={user_id} вводит email: '{email}'")
 
     is_valid, error_message = await validate_email(email)
@@ -262,7 +256,7 @@ async def process_review(event: MessageCallback, context: MemoryContext) -> None
     if event.callback.payload == "review_correct":
         await event.answer("")
         await event.message.edit_text(
-            text=event.message.text,
+            text=event.message.body.text,          # <-- исправлено
             attachments=[]
         )
         await event.message.answer(
@@ -313,12 +307,12 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
 @router.message_created(Registration.waiting_for_edit_first_name)
 async def process_edit_first_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(text="✍️ Пожалуйста, введите имя текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()               # <-- исправлено
     is_valid, error = await validate_first_name(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -331,12 +325,12 @@ async def process_edit_first_name(event: MessageCreated, context: MemoryContext)
 
 @router.message_created(Registration.waiting_for_edit_last_name)
 async def process_edit_last_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(text="✍️ Пожалуйста, введите фамилию текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()               # <-- исправлено
     is_valid, error = await validate_last_name(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -361,12 +355,12 @@ async def process_edit_gender(event: MessageCallback, context: MemoryContext) ->
 
 @router.message_created(Registration.waiting_for_edit_birth_date)
 async def process_edit_birth_date(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(text="✍️ Пожалуйста, введите дату текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()               # <-- исправлено
     is_valid, error = await validate_birth_date(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -380,12 +374,12 @@ async def process_edit_birth_date(event: MessageCreated, context: MemoryContext)
 
 @router.message_created(Registration.waiting_for_edit_email)
 async def process_edit_email(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.text:
+    if not event.message.body.text:                      # <-- исправлено
         await event.message.answer(text="✍️ Пожалуйста, введите почту текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.text.strip()
+    value = event.message.body.text.strip()               # <-- исправлено
     is_valid, error = await validate_email(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -414,7 +408,7 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
 
     await event.answer("")
     await event.message.edit_text(
-        text=event.message.text,
+        text=event.message.body.text,          # <-- исправлено
         attachments=[]
     )
 
