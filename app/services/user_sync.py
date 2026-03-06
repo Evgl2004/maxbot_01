@@ -15,7 +15,6 @@ from app.database.models import User
 from app.services import iiko_service
 from app.keyboards.iiko import retry_keyboard
 from app.utils.qr import generate_qr_code
-from app.handlers.menu import show_main_menu
 
 
 async def sync_user_with_iiko(
@@ -39,7 +38,6 @@ async def sync_user_with_iiko(
         message_id = None
         is_callback = False
 
-    # Явно приводим phone к строке, чтобы успокоить статический анализатор
     phone = str(user.phone_number) if user.phone_number else ""
     if not phone:
         text = "❌ Ошибка: номер телефона не найден."
@@ -96,7 +94,6 @@ async def sync_user_with_iiko(
     # 4. Проверяем наличие карт
     cards = client_info.get('cards', [])
     if not cards:
-        # Приводим phone к строке ещё раз для надёжности
         success, card_msg, card_number = await iiko_service.issue_card_for_customer(str(phone), client_info['customer_id'])
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {card_msg}"
@@ -125,7 +122,6 @@ async def sync_user_with_iiko(
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
             tmp.write(qr_photo)
             tmp_path = tmp.name
-        # В maxapi send_file сам загружает файл, upload_file не нужен
         await bot.send_file(
             file_path=tmp_path,
             media_type="image",
@@ -133,6 +129,9 @@ async def sync_user_with_iiko(
             text=f"✅ Ваша бонусная карта:\n{card_number}"
         )
         os.unlink(tmp_path)
+
+    # Импортируем show_main_menu только здесь, чтобы избежать циклического импорта
+    from app.handlers.menu import show_main_menu
 
     # Показываем главное меню
     await show_main_menu(
