@@ -6,7 +6,8 @@
 - просмотра деталей тикета
 - ответа на тикет пользователем
 - обработки текста ответа
-- уведомления модераторов о новом сообщении."""
+- уведомления модераторов о новом сообщении.
+"""
 
 from loguru import logger
 
@@ -35,7 +36,6 @@ async def user_tickets_list(event: MessageCallback) -> None:
     bot = event.bot
     user_id = event.user.user_id
 
-    # Получаем первую страницу тикетов пользователя (по 5 на странице)
     tickets, total_count = await ticket_service.get_tickets_page(
         page=1,
         per_page=5,
@@ -73,7 +73,6 @@ async def user_tickets_page(event: MessageCallback) -> None:
     Ожидает callback_data вида "user_tickets_page_2".
     """
     bot = event.bot
-    # Извлекаем номер страницы из payload
     page_str = event.callback.payload.replace('user_tickets_page_', '')
     try:
         page = int(page_str)
@@ -141,7 +140,7 @@ async def user_ticket_details(event: MessageCallback) -> None:
 
 # ---------- Начало ответа на тикет ----------
 @router.message_callback(Command('user_reply_'))
-async def user_reply_to_ticket(event: MessageCallback, data: dict) -> None:
+async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
     """
     Начало ответа на тикет – устанавливает состояние ожидания ответа.
     Ожидает callback_data вида "user_reply_123".
@@ -163,11 +162,6 @@ async def user_reply_to_ticket(event: MessageCallback, data: dict) -> None:
         await event.answer("❌ Тикет закрыт, ответ невозможен")
         return
 
-    context: MemoryContext = data.get('context')
-    if not context:
-        logger.error("Контекст не найден")
-        return
-
     await context.update_data(reply_ticket_id=ticket_id)
     await context.set_state(UserTicketStates.waiting_for_reply)
 
@@ -185,15 +179,11 @@ async def user_reply_to_ticket(event: MessageCallback, data: dict) -> None:
 
 # ---------- Обработка ввода ответа пользователя ----------
 @router.message_created(UserTicketStates.waiting_for_reply)
-async def user_send_reply(event: MessageCreated, data: dict) -> None:
+async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает ответ пользователя на тикет.
     Сохраняет сообщение, уведомляет модераторов, обновляет карточку тикета.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     bot = event.bot
 
     if not event.message.text:
@@ -210,7 +200,7 @@ async def user_send_reply(event: MessageCreated, data: dict) -> None:
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
-    if not ticket or ticket.user_id != event.sender.id:
+    if not ticket or ticket.user_id != event.sender.user_id:
         await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка доступа")
         await context.clear()
         return
@@ -219,7 +209,7 @@ async def user_send_reply(event: MessageCreated, data: dict) -> None:
     await ticket_service.add_message_to_ticket(
         ticket_id=ticket_id,
         sender_type="user",
-        sender_id=event.sender.id,
+        sender_id=event.sender.user_id,
         message=event.message.text
     )
 

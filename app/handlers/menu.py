@@ -173,10 +173,8 @@ async def process_virtual_card(event: MessageCallback) -> None:
             if not cards:
                 cards = [{'number': card_number}]
 
-    # Удаляем предыдущее сообщение, чтобы отправить несколько новых (QR-коды)
     await bot.delete_message(event.message.id)
 
-    # Отправляем QR-коды для каждой карты
     for card in cards:
         card_number = card['number']
         qr_photo = await generate_qr_code(card_number)
@@ -260,7 +258,6 @@ async def process_vacancies(event: MessageCallback) -> None:
         "бренда Тюмени – переходи по ссылке и оставляй заявку!\n\n"
         "👉 [Посмотреть все вакансии](https://team.sobolevalliance.su/vacancy)"
     )
-    # В maxapi ссылка форматируется как Markdown? Отправляем как есть, без указания формата.
     await bot.update_message(
         message_id=event.message.id,
         text=text,
@@ -290,16 +287,11 @@ async def process_feedback(event: MessageCallback) -> None:
 
 
 @router.message_callback(Command('support_question'))
-async def process_question(event: MessageCallback, data: dict) -> None:
+async def process_question(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обработчик функции 'Мне только спросить' – начало создания тикета.
     Устанавливает состояние ожидания вопроса и просит пользователя ввести текст.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        logger.error("Контекст не найден")
-        return
-
     bot = event.bot
     await event.answer("")
     await context.set_state(TicketStates.waiting_for_question)
@@ -317,15 +309,11 @@ async def process_question(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_created(TicketStates.waiting_for_question)
-async def process_question_text(event: MessageCreated, data: dict) -> None:
+async def process_question_text(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обработчик текста вопроса от пользователя.
     Создаёт тикет, уведомляет модераторов и очищает состояние.
     """
-    context: MemoryContext = data.get('context')
-    if not context:
-        return
-
     bot = event.bot
 
     if not event.message.text:
@@ -344,7 +332,7 @@ async def process_question_text(event: MessageCreated, data: dict) -> None:
     ticket = await ticket_service.create_ticket(
         user_id=event.sender.user_id,
         message=event.message.text,
-        user_username=event.sender.name,          # в MAX это поле может содержать username
+        user_username=event.sender.name,
         user_first_name=event.sender.first_name or user.first_name_input
     )
 
@@ -358,7 +346,6 @@ async def process_question_text(event: MessageCreated, data: dict) -> None:
         )
     )
 
-    # Уведомление модераторам
     try:
         open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
         notification_text = (
@@ -408,12 +395,11 @@ async def process_contacts(event: MessageCallback) -> None:
 
 # ---------- Навигационные кнопки ----------
 @router.message_callback(Command('back_to_main'))
-async def process_back_to_main(event: MessageCallback, data: dict) -> None:
+async def process_back_to_main(event: MessageCallback, context: MemoryContext) -> None:
     """
     Возврат в главное меню.
     Удаляет текущее сообщение и отправляет новое с главным меню.
     """
-    context: MemoryContext = data.get('context')
     if context:
         await context.clear()
 
@@ -436,11 +422,10 @@ async def process_back_to_main(event: MessageCallback, data: dict) -> None:
 
 
 @router.message_callback(Command('back_to_support'))
-async def process_back_to_support(event: MessageCallback, data: dict) -> None:
+async def process_back_to_support(event: MessageCallback, context: MemoryContext) -> None:
     """
     Возврат во вложенное меню отдела заботы.
     """
-    context: MemoryContext = data.get('context')
     if context:
         await context.clear()
 

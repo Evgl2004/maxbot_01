@@ -19,12 +19,11 @@ from app.states.registration import Registration
 from app.handlers.menu import show_main_menu
 from app.handlers.legacy import start_legacy_upgrade
 
-# Создаём роутер для группировки обработчиков этого модуля
 router = Router()
 
 
 @router.message_created(Command('start'))
-async def start_command(event: MessageCreated, data: dict) -> None:
+async def start_command(event: MessageCreated, context: MemoryContext) -> None:
     """
     👋 Обработчик команды /start.
 
@@ -38,15 +37,8 @@ async def start_command(event: MessageCreated, data: dict) -> None:
 
     Аргументы:
         event (MessageCreated): событие создания сообщения
-        data (dict): словарь с дополнительными данными, переданными middleware
-                     В частности, там может быть ключ 'context' для работы с FSM
+        context (MemoryContext): контекст FSM
     """
-    # Получаем контекст FSM (он может понадобиться для установки состояния)
-    context: MemoryContext = data.get('context')
-    if not context:
-        logger.error("Контекст не найден")
-        return
-
     # Получаем пользователя из события
     user = event.from_user
     user_id = user.user_id
@@ -61,7 +53,6 @@ async def start_command(event: MessageCreated, data: dict) -> None:
     # --- Проверка, является ли пользователь устаревшим ---
     if db_user.is_registered and db_user.is_legacy:
         logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления данных")
-        # Вызываем обработчик legacy, передаём событие и пользователя
         await start_legacy_upgrade(event, db_user)
         return
 
