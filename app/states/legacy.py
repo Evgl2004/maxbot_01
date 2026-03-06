@@ -2,7 +2,7 @@
 Состояния для процесса апгрейда пользователей из старого бота.
 """
 
-from maxbot.fsm import State, StatesGroup
+from maxapi.context import State, StatesGroup
 
 
 class LegacyUpgrade(StatesGroup):

@@ -1,52 +1,77 @@
 """
 Обработчик команды /start с проверкой регистрации и согласий
+===============================================================
+При запуске бота проверяет статус пользователя и направляет по нужному пути:
+- если не приняты правила → показываем правила и кнопку согласия
+- если правила приняты, но регистрация не завершена → запрашиваем контакт
+- если регистрация завершена → показываем главное меню
 """
 
-from maxbot.router import Router
-from maxbot.types import Message
-from maxbot.filters import F  # или Command, если есть
 from loguru import logger
+
+from maxapi import Router
+from maxapi.types import Command, MessageCreated
+# Для работы с FSM потребуется контекст, он будет передан в data
+from maxapi.context import MemoryContext
 
 from app.database import db
 from app.keyboards.registration import get_rules_keyboard, get_contact_keyboard
 from app.states.registration import Registration
 from app.handlers.menu import show_main_menu
 from app.handlers.legacy import start_legacy_upgrade
-from app.utils import with_logging, with_user_save
 
+# Создаём роутер для группировки обработчиков этого модуля
 router = Router()
 
 
-@router.message(F.text == "/start")   # временно, пока нет Command
-@with_logging
-@with_user_save
-async def start_command(message: Message):
+@router.message_created(Command('start'))
+async def start_command(event: MessageCreated, data: dict):
     """
-    Обработчик команды /start.
-    Проверяет статус пользователя и направляет по нужному пути.
+    👋 Обработчик команды /start.
+
+    Последовательность действий:
+    1. Извлекаем пользователя из события.
+    2. Получаем данные пользователя из БД (декораторы middleware уже сохранили/обновили).
+    3. Если пользователь устаревший (is_legacy) – запускаем процесс обновления.
+    4. Если не приняты правила – показываем правила и устанавливаем состояние.
+    5. Если правила приняты, но регистрация не завершена – запрашиваем контакт.
+    6. Иначе показываем главное меню.
+
+    Аргументы:
+        event (MessageCreated): событие создания сообщения
+        data (dict): словарь с дополнительными данными, переданными middleware
+                     В частности, там может быть ключ 'context' для работы с FSM
     """
-    # Получаем данные пользователя из события
-    user = message.sender
+    # Получаем контекст из data (он автоматически добавляется диспетчером)
+    context: MemoryContext = data.get('context')
+    if context is None:
+        # На случай, если контекст не передан – создаём временный (но лучше не должно быть)
+        logger.error("Контекст не найден в данных обработчика")
+        return
+
+    # Получаем пользователя из события
+    user = event.from_user
     user_id = user.id
     logger.info(f"Пользователь user_id={user_id} запустил бот")
 
-    # Получаем полные данные пользователя из БД (декоратор уже сохранил/обновил)
+    # Получаем полные данные пользователя из БД
+    # (middleware уже должен был сохранить пользователя, но для надёжности берём из БД)
     db_user = await db.get_user(user_id)
     if not db_user:
         logger.error(f"Пользователь user_id={user_id} не найден в БД")
         return
 
-    # Проверка, является ли пользователь устаревшим
+    # --- Проверка, является ли пользователь устаревшим ---
     if db_user.is_registered and db_user.is_legacy:
         logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления данных")
-        await start_legacy_upgrade(message, db_user)  # state не передаём
+        # Вызываем обработчик legacy, передаём событие и пользователя (без контекста, он сам получит)
+        await start_legacy_upgrade(event, db_user)
         return
 
-    # Проверка согласия с правилами
+    # --- Проверка согласия с правилами ---
     if not db_user.rules_accepted:
-        bot = message.dispatcher.bot
-        await bot.send_message(
-            chat_id=message.chat.id,
+        # Отправляем сообщение с правилами и клавиатурой
+        await event.message.answer(
             text=(
                 "👋 Здравствуй Друг!\n\n"
                 "Добро пожаловать к нам в гости!\n\n"
@@ -54,30 +79,28 @@ async def start_command(message: Message):
                 "и согласие с политикой конфиденциальности.\n\n"
                 "👉 Ознакомься с документами по ссылке ниже и нажми «✅ Согласен»."
             ),
-            reply_markup=get_rules_keyboard()
+            attachments=[get_rules_keyboard()]   # клавиатура передаётся как вложение
         )
-        await message.set_state(Registration.waiting_for_rules_consent)
+        # Устанавливаем состояние ожидания согласия с правилами
+        await context.set_state(Registration.waiting_for_rules_consent)
         return
 
-    # Проверка завершённости регистрации
+    # --- Проверка завершённости регистрации ---
     if not db_user.is_registered:
-        bot = message.dispatcher.bot
-        await bot.send_message(
-            chat_id=message.chat.id,
+        # Запрашиваем контакт
+        await event.message.answer(
             text=(
                 "📱 Чтобы подключиться к программе лояльности, нажми кнопку «Поделиться контактом».\n"
                 "После этого мы будем знакомы чуть ближе."
             ),
-            reply_markup=get_contact_keyboard()
+            attachments=[get_contact_keyboard()]
         )
-        await message.set_state(Registration.waiting_for_contact)
+        await context.set_state(Registration.waiting_for_contact)
         return
 
-    # Если регистрация завершена — показываем главное меню
-    bot = message.dispatcher.bot
+    # --- Если регистрация завершена — показываем главное меню ---
     await show_main_menu(
-        chat_id=message.chat.id,
-        bot=bot,
+        chat_id=event.message.chat.id,
+        bot=event.bot,                     # бот доступен через event.bot
         user_name=db_user.first_name_input or "Гость"
-        # state больше не передаём
     )

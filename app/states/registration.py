@@ -3,7 +3,7 @@
 Каждый класс наследуется от StatesGroup, а каждый атрибут — это отдельное состояние (State).
 """
 
-from maxbot.fsm import State, StatesGroup
+from maxapi.context import State, StatesGroup
 
 
 class Registration(StatesGroup):

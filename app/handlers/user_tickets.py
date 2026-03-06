@@ -20,7 +20,7 @@ import html
 router = Router()
 
 
-@router.callback()
+@router.callback(F.payload == "my_tickets")
 async def user_tickets_list(callback: Callback):
     """
     Показывает первую страницу списка тикетов текущего пользователя.
@@ -60,7 +60,7 @@ async def user_tickets_list(callback: Callback):
     await bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback()
+@router.callback(F.payload.startswith("user_tickets_page_"))
 async def user_tickets_page(callback: Callback):
     """
     Обработчик переключения страниц списка тикетов пользователя.
@@ -102,7 +102,7 @@ async def user_tickets_page(callback: Callback):
     await bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback()
+@router.callback(F.payload.startswith("user_ticket_"))
 async def user_ticket_details(callback: Callback):
     """Показывает детали тикета для пользователя"""
     if not callback.payload.startswith("user_ticket_"):
@@ -132,7 +132,7 @@ async def user_ticket_details(callback: Callback):
     await bot.answer_callback(callback.callback_id, "")
 
 
-@router.callback()
+@router.callback(F.payload.startswith("user_reply_"))
 async def user_reply_to_ticket(callback: Callback):
     """Начало ответа на тикет пользователем"""
     if not callback.payload.startswith("user_reply_"):

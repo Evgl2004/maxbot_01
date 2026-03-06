@@ -2,7 +2,7 @@
 Состояния для системы тикетов
 """
 
-from maxbot.fsm import State, StatesGroup
+from maxapi.context import State, StatesGroup
 
 
 class TicketStates(StatesGroup):

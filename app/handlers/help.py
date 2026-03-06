@@ -1,25 +1,36 @@
 """
 Обработчики команд помощи и информации
+========================================
+Содержит функции для команд /help и /status.
+Выводят справочную информацию о боте и его состоянии.
 """
 
 from loguru import logger
+from datetime import datetime
 
-from maxbot.router import Router
-from maxbot.types import Message
-from maxbot.filters import F
+from maxapi import Router
+from maxapi.types import Command, MessageCreated  # Command импортируется отсюда
 
 from app.config import settings
 
+# Создаём роутер для группировки обработчиков этого модуля
 router = Router()
 
 
-@router.message(F.text == "/help")
-async def help_command(message: Message):
-    """Обработчик команды /help"""
-    user = message.sender
-    logger.info(f"ℹ️ User {user.id} requested help")
-    bot = message.dispatcher.bot
+@router.message_created(Command('help'))
+async def help_command(event: MessageCreated):
+    """
+    🆘 Обработчик команды /help.
 
+    Отправляет пользователю список доступных команд и техническую информацию.
+
+    Аргументы:
+        event (MessageCreated): событие создания сообщения.
+    """
+    user = event.from_user
+    logger.info(f"ℹ️ Пользователь {user.id} запросил справку")
+
+    # Формируем текст справки (точно как в оригинале, но с учётом среды)
     help_text = (
         f"🆘 <b>Помощь по боту</b>\n\n"
         f"📋 <b>Доступные команды:</b>\n"
@@ -32,19 +43,24 @@ async def help_command(message: Message):
         f"💬 Если у вас есть вопросы, обращайтесь к разработчику."
     )
 
-    await bot.send_message(
-        chat_id=message.chat.id,
-        text=help_text,
-        format="html"
-    )
+    # Отправляем ответ (параметр format удалён)
+    await event.message.answer(help_text)
 
 
-@router.message(F.text == "/status")
-async def status_command(message: Message):
-    """Обработчик команды /status"""
-    user = message.sender
-    logger.info(f"📊 User {user.id} requested status")
-    bot = message.dispatcher.bot
+@router.message_created(Command('status'))
+async def status_command(event: MessageCreated):
+    """
+    📊 Обработчик команды /status.
+
+    Отправляет информацию о текущем состоянии бота (активен, среда, время проверки).
+
+    Аргументы:
+        event (MessageCreated): событие создания сообщения.
+    """
+    user = event.from_user
+    logger.info(f"📊 Пользователь {user.id} запросил статус")
+
+    current_time = datetime.now().strftime('%H:%M:%S %d.%m.%Y')
 
     status_text = (
         f"📊 <b>Статус бота</b>\n\n"
@@ -52,11 +68,7 @@ async def status_command(message: Message):
         f"🏠 Среда: <code>{settings.env}</code>\n"
         f"🗄️ База данных: Подключена\n"
         f"🚀 Redis: Подключен\n"
-        f"⏰ Время проверки: {message.chat.id}"  # В maxbot нет message.date, можно использовать текущее время
+        f"⏰ Время проверки: {current_time}"
     )
 
-    await bot.send_message(
-        chat_id=message.chat.id,
-        text=status_text,
-        format="html"
-    )
+    await event.message.answer(status_text)

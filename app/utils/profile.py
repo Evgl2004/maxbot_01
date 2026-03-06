@@ -1,28 +1,42 @@
-"""Общие функции для работы с профилем пользователя"""
+"""
+Общие функции для работы с профилем пользователя
+==================================================
+Содержит функцию show_profile_review, которая отображает пользователю его анкету
+с кнопками «Всё верно» и «Изменить». Используется в процессах регистрации
+и обновления legacy-пользователей.
+"""
 
 from typing import Union
 
-from maxbot.types import Message, Callback
+from maxapi.types import MessageCreated, MessageCallback
+from maxapi.context import MemoryContext
 
 from app.database import db
 from app.keyboards.registration import get_review_keyboard
 
 
-async def show_profile_review(event: Union[Message, Callback], target_state=None):
+async def show_profile_review(
+    event: Union[MessageCreated, MessageCallback],
+    context: MemoryContext,
+    target_state=None
+) -> None:
     """
     Показывает пользователю его текущие данные в виде анкеты с кнопками «Всё верно» / «Изменить».
 
-    Args:
-        event (Union[Message, Callback]): Объект события (сообщение или callback)
-        target_state: Состояние для установки после показа (опционально)
+    Аргументы:
+        event (Union[MessageCreated, MessageCallback]): объект события (сообщение или callback)
+        context (MemoryContext): контекст FSM для последующей установки состояния
+        target_state: состояние, в которое нужно перевести пользователя после показа анкеты
+                      (обычно Registration.waiting_for_review или LegacyUpgrade.waiting_for_review)
     """
-    user_id = event.sender.id if isinstance(event, Message) else event.user.id
-    bot = event.dispatcher.bot
+    user_id = event.sender.id if isinstance(event, MessageCreated) else event.user.id
+    bot = event.bot
 
     user = await db.get_user(user_id)
     if not user:
         return
 
+    # Формируем текст анкеты
     gender_text = "мужской" if user.gender == "male" else "женский" if user.gender == "female" else "не указан"
     birth_text = user.birth_date.strftime('%d.%m.%Y') if user.birth_date else "не указана"
     text = (
@@ -36,22 +50,21 @@ async def show_profile_review(event: Union[Message, Callback], target_state=None
         "Всё верно?"
     )
 
-    if isinstance(event, Message):
+    # Отправляем или редактируем сообщение в зависимости от типа события
+    if isinstance(event, MessageCreated):
         await bot.send_message(
             chat_id=event.chat.id,
             text=text,
-            reply_markup=get_review_keyboard(),
-            format="markdown"
+            attachments=[get_review_keyboard()]
         )
     else:
         await bot.update_message(
             message_id=event.message.id,
             text=text,
-            reply_markup=get_review_keyboard(),
-            format="markdown"
+            attachments=[get_review_keyboard()]
         )
         await bot.answer_callback(event.callback_id, "")
 
-    # Устанавливаем состояние, если передано
+    # Устанавливаем целевое состояние, если передано
     if target_state:
-        await event.set_state(target_state)
+        await context.set_state(target_state)

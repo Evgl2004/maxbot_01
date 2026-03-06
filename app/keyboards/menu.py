@@ -1,45 +1,108 @@
 """
 Клавиатуры для главного меню и подменю.
+=========================================
+Содержит функции для создания:
+- главного меню (баланс, карта, отдел заботы, вакансии)
+- подменю отдела заботы
+- кнопок возврата
 """
 
-from maxbot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from maxapi.types import CallbackButton
+from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 
-def get_main_menu_keyboard() -> InlineKeyboardMarkup:
-    """Главное меню"""
-    keyboard = [
-        [InlineKeyboardButton(text="💰 Мой баланс", callback_data="balance")],
-        [InlineKeyboardButton(text="🪪 Виртуальная карта", callback_data="virtual_card")],
-        [InlineKeyboardButton(text="🆘 Отдел заботы", callback_data="support")],
-        [InlineKeyboardButton(text="💼 Вакансии", callback_data="vacancies")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+def get_main_menu_keyboard():
+    """
+    🏠 Главное меню бота.
+
+    Содержит четыре кнопки:
+    - «💰 Мой баланс» – просмотр бонусного баланса.
+    - «🪪 Виртуальная карта» – показать карты и QR-коды.
+    - «🆘 Отдел заботы» – переход вложенное меню поддержки.
+    - «💼 Вакансии» – информация о вакансиях.
+
+    Каждая кнопка при нажатии отправляет callback с соответствующим payload.
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        CallbackButton(text="💰 Мой баланс", payload="balance")
+    )
+    builder.row(
+        CallbackButton(text="🪪 Виртуальная карта", payload="virtual_card")
+    )
+    builder.row(
+        CallbackButton(text="🆘 Отдел заботы", payload="support")
+    )
+    builder.row(
+        CallbackButton(text="💼 Вакансии", payload="vacancies")
+    )
+
+    return builder.as_markup()
 
 
-def get_support_submenu_keyboard(has_tickets: bool = False) -> InlineKeyboardMarkup:
-    """Подменю отдела заботы"""
-    keyboard = [
-        [InlineKeyboardButton(text="✍️ Оставить отзыв", callback_data="support_feedback")],
-        [InlineKeyboardButton(text="❓ Мне только спросить", callback_data="support_question")],
-    ]
+def get_support_submenu_keyboard(has_tickets: bool = False):
+    """
+    🆘 Подменю отдела заботы.
+
+    В зависимости от наличия тикетов у пользователя может показывать
+    дополнительную кнопку «Мои обращения».
+
+    Аргументы:
+        has_tickets (bool): есть ли у пользователя открытые тикеты.
+
+    Кнопки:
+    - «✍️ Оставить отзыв» – переход к внешней форме.
+    - «❓ Мне только спросить» – создание нового тикета.
+    - «📋 Мои обращения» – просмотр списка тикетов (если has_tickets=True).
+    - «📧 Контакты» – контактная информация.
+    - «🔙 Назад в меню» – возврат в главное меню.
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        CallbackButton(text="✍️ Оставить отзыв", payload="support_feedback")
+    )
+    builder.row(
+        CallbackButton(text="❓ Мне только спросить", payload="support_question")
+    )
+
     if has_tickets:
-        keyboard.append([InlineKeyboardButton(text="📋 Мои обращения", callback_data="my_tickets")])
-    keyboard.append([InlineKeyboardButton(text="📧 Контакты", callback_data="support_contacts")])
-    keyboard.append([InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_main")])
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+        builder.row(
+            CallbackButton(text="📋 Мои обращения", payload="my_tickets")
+        )
+
+    builder.row(
+        CallbackButton(text="📧 Контакты", payload="support_contacts")
+    )
+    builder.row(
+        CallbackButton(text="🔙 Назад в меню", payload="back_to_main")
+    )
+
+    return builder.as_markup()
 
 
-def get_back_to_main_keyboard() -> InlineKeyboardMarkup:
-    """Кнопка возврата в главное меню"""
-    keyboard = [[
-        InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_main")
-    ]]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+def get_back_to_main_keyboard():
+    """
+    🔙 Кнопка возврата в главное меню.
+
+    Используется в разделах, где нет собственного подменю.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад в меню", payload="back_to_main")
+    )
+    return builder.as_markup()
 
 
-def get_back_to_support_keyboard() -> InlineKeyboardMarkup:
-    """Кнопка возврата в отдел заботы"""
-    keyboard = [[
-        InlineKeyboardButton(text="🔙 Назад в отдел заботы", callback_data="back_to_support")
-    ]]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+def get_back_to_support_keyboard():
+    """
+    🔙 Кнопка возврата в отдел заботы.
+
+    Используется внутри разделов отдела заботы (отзыв, вопрос, контакты).
+    """
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад в отдел заботы", payload="back_to_support")
+    )
+    return builder.as_markup()
