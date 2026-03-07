@@ -284,6 +284,7 @@ async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str)
     """
     try:
         moderators = await db.get_moderators()
+        user_display = html.escape(ticket.user_username or ticket.user_first_name or str(ticket.user_id))
         for moderator in moderators:
             try:
                 await bot.send_message(
@@ -291,9 +292,7 @@ async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str)
                     text=(
                         f"📬 <b>Новое сообщение от пользователя</b>\n\n"
                         f"🎫 Тикет #{ticket.id}\n"
-                        f"👤 Пользователь: {html.escape(ticket.user_username 
-                                                       or ticket.user_first_name 
-                                                       or str(ticket.user_id))}\n"
+                        f"👤 Пользователь: {html.escape(user_display)}\n"
                         f"💬 Сообщение: {html.escape(message_text[:100])}{'…' if len(message_text) > 100 else ''}"
                     )
                 )
