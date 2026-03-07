@@ -1,4 +1,4 @@
-"""Общие функции валидации данных пользователей"""
+"""Общие функции валидации данных пользователей."""
 
 import re
 from datetime import datetime, date
@@ -9,13 +9,17 @@ from maxapi.types import MessageCreated
 
 async def validate_first_name(value: str) -> Tuple[bool, str]:
     """
-    Валидация имени пользователя.
+    Проверяет корректность введённого имени.
+
+    Имя не должно быть пустым и должно содержать только буквы (русские/латиница),
+    пробелы и дефисы.
 
     Args:
-        value (str): Введенное значение
+        value (str): введённое пользователем имя.
 
     Returns:
-        tuple[bool, str]: (успех, сообщение об ошибке)
+        Tuple[bool, str]: (True, "") если валидация пройдена,
+                           (False, сообщение_об_ошибке) в противном случае.
     """
     if not value:
         return False, "❌ Имя не может быть пустым. Введите имя:"
@@ -26,7 +30,17 @@ async def validate_first_name(value: str) -> Tuple[bool, str]:
 
 async def validate_last_name(value: str) -> Tuple[bool, str]:
     """
-    Валидация фамилии пользователя.
+    Проверяет корректность введённой фамилии.
+
+    Фамилия не должна быть пустой и должна содержать только буквы (русские/латиница),
+    пробелы и дефисы.
+
+    Args:
+        value (str): введённая пользователем фамилия.
+
+    Returns:
+        Tuple[bool, str]: (True, "") если валидация пройдена,
+                           (False, сообщение_об_ошибке) в противном случае.
     """
     if not value:
         return False, "❌ Фамилия не может быть пустой. Введите фамилию:"
@@ -37,7 +51,20 @@ async def validate_last_name(value: str) -> Tuple[bool, str]:
 
 async def validate_birth_date(value: str) -> Tuple[bool, str]:
     """
-    Валидация даты рождения пользователя.
+    Проверяет корректность введённой даты рождения.
+
+    Требования:
+        - формат ДД.ММ.ГГГГ
+        - дата должна существовать (не 31.02 и т.п.)
+        - дата не может быть в будущем
+        - возраст от 18 до 100 лет
+
+    Args:
+        value (str): строка с датой в формате ДД.ММ.ГГГГ.
+
+    Returns:
+        Tuple[bool, str]: (True, "") если валидация пройдена,
+                           (False, сообщение_об_ошибке) в противном случае.
     """
     if not re.fullmatch(r'^\d{2}\.\d{2}\.\d{4}$', value):
         return False, "❌ Неверный формат. Введите дату в формате ДД.ММ.ГГГГ:"
@@ -58,7 +85,16 @@ async def validate_birth_date(value: str) -> Tuple[bool, str]:
 
 async def validate_email(value: str) -> Tuple[bool, str]:
     """
-    Валидация email пользователя.
+    Проверяет корректность введённого email-адреса.
+
+    Выполняется простая проверка на наличие символа '@' и точки после него.
+
+    Args:
+        value (str): введённый пользователем email.
+
+    Returns:
+        Tuple[bool, str]: (True, "") если валидация пройдена,
+                           (False, сообщение_об_ошибке) в противном случае.
     """
     if not value:
         return False, "❌ Email не может быть пустым. Введите email:"
@@ -69,17 +105,32 @@ async def validate_email(value: str) -> Tuple[bool, str]:
 
 async def clean_name(value: str) -> str:
     """
-    Очистка имени/фамилии от лишних пробелов.
+    Удаляет лишние пробелы в имени/фамилии (заменяет множественные пробелы на один,
+    убирает пробелы в начале и конце).
+
+    Args:
+        value (str): исходная строка.
+
+    Returns:
+        str: очищенная строка.
     """
     return re.sub(r'\s+', ' ', value).strip()
 
 
-async def confirm_text(message: MessageCreated, error_text: str = "✍️ Пожалуйста, отправьте текстовое сообщение.") -> bool:
+async def confirm_text(message: MessageCreated,
+                       error_text: str = "✍️ Пожалуйста, отправьте текстовое сообщение.") -> bool:
     """
-    Проверяет, содержит ли сообщение текст.
-    Если нет – отправляет пользователю сообщение об ошибке и возвращает False.
+    Проверяет, содержит ли сообщение текст. Если нет – отправляет пользователю
+    сообщение об ошибке и возвращает False.
+
+    Args:
+        message (MessageCreated): объект события создания сообщения
+        error_text (str): текст ошибки, который будет отправлен пользователю
+
+    Returns:
+        bool: True, если сообщение содержит текст, иначе False.
     """
-    if not message.body.text:                                   # <-- исправлено
-        await message.answer(text=error_text)                    # <-- отправляем через message.answer
+    if not message.body.text:
+        await message.answer(text=error_text)
         return False
     return True

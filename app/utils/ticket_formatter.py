@@ -5,9 +5,17 @@ from app.database.models import Ticket, TicketMessage
 
 def format_ticket_details(ticket: Ticket, messages: Optional[List[TicketMessage]] = None) -> str:
     """
-    Форматирует детали тикета с историей переписки в HTML для отправки в Telegram.
-    """
+    Форматирует детали тикета и историю переписки в HTML-строку для отправки пользователю или модератору.
 
+    Args:
+        ticket (Ticket): объект тикета из базы данных
+        messages (Optional[List[TicketMessage]]): список сообщений, относящихся к тикету
+                                                  Если None, история не отображается
+
+    Returns:
+        str: отформатированное сообщение в HTML, готовое к отправке через event.message.answer
+             или bot.send_message.
+    """
     # Экранируем основные поля
     username = html.escape(ticket.user_username or ticket.user_first_name or f"ID:{ticket.user_id}")
     time_created = ticket.created_at.strftime("%d.%m.%Y %H:%M")
@@ -48,8 +56,15 @@ def format_ticket_details(ticket: Ticket, messages: Optional[List[TicketMessage]
 
 
 def localize_status(status: str) -> str:
-    """Переводит статус тикета на русский язык"""
+    """
+    Переводит статус тикета на русский язык для отображения пользователю.
 
+    Args:
+        status (str): статус тикета на английском ('open', 'in_progress', 'closed').
+
+    Returns:
+        str: русскоязычное представление статуса.
+    """
     status_map = {
         "open": "Открыт",
         "in_progress": "В работе",

@@ -3,6 +3,8 @@
 ========================================
 Содержит функции для команд /help и /status.
 Выводят справочную информацию о боте и его состоянии.
+
+Данный модуль не использует FSM, поэтому все хендлеры принимают только event.
 """
 
 from loguru import logger
@@ -18,19 +20,18 @@ router = Router()
 
 
 @router.message_created(Command('help'))
-async def help_command(event: MessageCreated):
+async def help_command(event: MessageCreated) -> None:
     """
-    🆘 Обработчик команды /help.
+    Обработчик команды /help.
 
     Отправляет пользователю список доступных команд и техническую информацию.
 
-    Аргументы:
+    Args:
         event (MessageCreated): событие создания сообщения.
     """
     user = event.from_user
     logger.info(f"ℹ️ Пользователь {user.user_id} запросил справку")
 
-    # Формируем текст справки (точно как в оригинале, но с учётом среды)
     help_text = (
         f"🆘 <b>Помощь по боту</b>\n\n"
         f"📋 <b>Доступные команды:</b>\n"
@@ -43,18 +44,18 @@ async def help_command(event: MessageCreated):
         f"💬 Если у вас есть вопросы, обращайтесь к разработчику."
     )
 
-    # Отправляем ответ (параметр format удалён)
+    # Отправляем ответ (текст без дополнительного форматирования, но HTML-теги будут работать)
     await event.message.answer(help_text)
 
 
 @router.message_created(Command('status'))
-async def status_command(event: MessageCreated):
+async def status_command(event: MessageCreated) -> None:
     """
-    📊 Обработчик команды /status.
+    Обработчик команды /status.
 
     Отправляет информацию о текущем состоянии бота (активен, среда, время проверки).
 
-    Аргументы:
+    Args:
         event (MessageCreated): событие создания сообщения.
     """
     user = event.from_user

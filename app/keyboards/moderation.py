@@ -12,31 +12,32 @@
 """
 
 from typing import List
+from datetime import datetime, timezone
 
 from maxapi.types import CallbackButton
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
-from app.database.models import Ticket  # для аннотации типа
+from app.database.models import Ticket
 
 
 class ModerationKeyboard:
     """
-    👨‍💼 Клавиатуры для модераторов.
+    Клавиатуры для модераторов.
     Все методы возвращают готовую inline-клавиатуру (объект вложения).
     """
 
     @staticmethod
     def main_menu():
         """
-        🏠 Главное меню модератора.
+        Главное меню модератора.
 
         Кнопки:
-        - 📋 Все тикеты – без фильтра.
-        - 🆕 Новые тикеты – статус 'open'.
-        - 🔄 В работе – статус 'in_progress'.
+        - «📋 Все тикеты» – без фильтра.
+        - «🆕 Новые тикеты» – статус 'open'.
+        - «🔄 В работе» – статус 'in_progress'.
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -58,19 +59,19 @@ class ModerationKeyboard:
         filter_key: str = 'all'
     ):
         """
-        📋 Список тикетов с пагинацией.
+        Список тикетов с пагинацией.
 
         Для каждого тикета создаётся кнопка с эмодзи статуса, номером,
         именем пользователя и временем. Внизу – кнопки навигации и возврата.
 
-        Аргументы:
+        Args:
             tickets (List[Ticket]): тикеты на текущей странице.
             current_page (int): номер текущей страницы.
             total_pages (int): общее количество страниц.
             filter_key (str): идентификатор фильтра ('all', 'open', 'progress').
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
 
@@ -117,19 +118,19 @@ class ModerationKeyboard:
     @staticmethod
     def ticket_details(ticket_id: int, status: str, back_filter: str = 'all'):
         """
-        🔍 Детальный просмотр тикета.
+        Детальный просмотр тикета.
 
         Кнопки зависят от статуса:
         - если тикет не закрыт: «📩 Ответить» и «🔒 Закрыть тикет».
         - всегда: «⬅️ Назад к списку» с учётом текущего фильтра.
 
-        Аргументы:
-            ticket_id (int): ID тикета
-            status (str): статус тикета
-            back_filter (str): фильтр, по которому был открыт список (для возврата)
+        Args:
+            ticket_id (int): ID тикета.
+            status (str): статус тикета.
+            back_filter (str): фильтр, по которому был открыт список (для возврата).
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
 
@@ -153,15 +154,15 @@ class ModerationKeyboard:
     @staticmethod
     def reply_to_ticket(ticket_id: int):
         """
-        ✏️ Клавиатура для ответа на тикет.
+        Клавиатура для ответа на тикет.
 
         Появляется, когда модератор начал писать ответ. Содержит только кнопку «Отмена».
 
-        Аргументы:
+        Args:
             ticket_id (int): ID тикета (для возврата).
 
-        Возвращает:
-            InlineKeyboardMarkup с одной кнопкой.
+        Returns:
+            InlineKeyboardMarkup: клавиатура с одной кнопкой.
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -172,17 +173,17 @@ class ModerationKeyboard:
     @staticmethod
     def after_reply(ticket_id: int):
         """
-        ✅ Клавиатура после отправки ответа.
+        Клавиатура после отправки ответа.
 
         Предлагает модератору:
         - «➕ Новый ответ» – снова ответить на этот же тикет.
         - «📋 Все тикеты» – вернуться к общему списку.
 
-        Аргументы:
+        Args:
             ticket_id (int): ID тикета.
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -196,9 +197,12 @@ class ModerationKeyboard:
     @staticmethod
     def back_to_main():
         """
-        🔙 Кнопка возврата в главное меню модератора.
+        Кнопка возврата в главное меню модератора.
 
         Используется в сообщениях, где нет других действий.
+
+        Returns:
+            InlineKeyboardMarkup: клавиатура с одной кнопкой.
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -209,27 +213,27 @@ class ModerationKeyboard:
     @staticmethod
     def _format_time_ago(created_at):
         """
-        ⏱️ Вспомогательный метод для форматирования времени создания тикета.
+        Вспомогательный метод для форматирования времени создания тикета.
 
         Возвращает строку вида "5мин", "2ч" или "3д" в зависимости от того,
         сколько времени прошло с момента создания.
 
-        Аргументы:
+        Args:
             created_at (datetime): время создания тикета (с временной зоной).
 
-        Возвращает:
+        Returns:
             str: сокращённое представление времени.
         """
-        import datetime
-        now = datetime.datetime.now(datetime.timezone.utc)
-        diff = now - created_at
+        now = datetime.now(timezone.utc)
+        diff = now - created_at  # created_at уже имеет тип datetime (с зоной)
+        seconds = diff.total_seconds()
 
-        if diff.total_seconds() < 3600:  # меньше часа
-            minutes = int(diff.total_seconds() / 60)
+        if seconds < 3600:
+            minutes = int(seconds / 60)
             return f"{minutes}мин"
-        elif diff.total_seconds() < 86400:  # меньше дня
-            hours = int(diff.total_seconds() / 3600)
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
             return f"{hours}ч"
         else:
-            days = int(diff.total_seconds() / 86400)
+            days = int(seconds / 86400)
             return f"{days}д"

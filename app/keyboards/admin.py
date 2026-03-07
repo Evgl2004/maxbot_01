@@ -9,26 +9,24 @@
 from maxapi.types import CallbackButton, LinkButton
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
-# Импорт настроек (используется для определения текущего режима API)
-from app.config import settings
-
 
 class AdminKeyboards:
     """
-    📋 Набор статических методов для создания админских клавиатур.
+    Набор статических методов для создания админских клавиатур.
+    Все методы возвращают готовую inline-клавиатуру (объект вложения).
     """
 
     @staticmethod
     def main_admin_menu():
         """
-        🏠 Главное меню администратора.
+        Главное меню администратора.
 
         Содержит три кнопки:
         - 📊 Рассылка – переход к созданию рассылки.
         - 👨‍💼 Модератор – открывает меню модерации (отдельный раздел).
         - ⚙️ Настройки API – просмотр и изменение режима API (Local/Public).
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup (attachment): готовая клавиатура.
         """
         builder = InlineKeyboardBuilder()
@@ -48,18 +46,18 @@ class AdminKeyboards:
     @staticmethod
     def broadcast_confirm(message_count: int):
         """
-        ✅ Подтверждение рассылки.
+        Подтверждение рассылки.
 
         Показывает количество получателей и предлагает подтвердить или отменить.
 
-        Аргументы:
+        Args:
             message_count (int): число пользователей, которым будет отправлена рассылка.
 
         Кнопки:
         - «✅ Отправить (X польз.)» – запуск рассылки.
         - «❌ Отменить» – возврат в меню.
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup.
         """
         builder = InlineKeyboardBuilder()
@@ -79,14 +77,14 @@ class AdminKeyboards:
     @staticmethod
     def broadcast_add_button():
         """
-        ➕ Меню добавления кнопки к рассылке.
+        Меню добавления кнопки к рассылке.
 
         Предлагает три варианта:
         - Добавить кнопку (переход к вводу).
         - Отправить без кнопки.
         - Отменить создание рассылки.
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup.
         """
         builder = InlineKeyboardBuilder()
@@ -106,7 +104,7 @@ class AdminKeyboards:
     @staticmethod
     def broadcast_button_confirm():
         """
-        ✅ Подтверждение кнопки для рассылки.
+        Подтверждение кнопки для рассылки.
 
         После ввода текста и URL кнопки администратору показывается
         предварительный просмотр и предлагается подтвердить или отменить.
@@ -115,7 +113,7 @@ class AdminKeyboards:
         - «✅ Подтвердить» – завершить создание и перейти к отправке.
         - «❌ Отменить» – вернуться в меню.
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup.
         """
         builder = InlineKeyboardBuilder()
@@ -132,17 +130,17 @@ class AdminKeyboards:
     @staticmethod
     def create_custom_button(text: str, url: str):
         """
-        🔗 Создание кнопки-ссылки для предварительного просмотра.
+        Создание кнопки-ссылки для предварительного просмотра.
 
         Используется для демонстрации того, как будет выглядеть кнопка в сообщении.
         Кнопка будет типа link, ведущая на указанный URL.
 
-        Аргументы:
-            text (str): текст кнопки.
-            url (str): ссылка.
+        Args:
+            text (str): текст кнопки
+            url (str): ссылка
 
-        Возвращает:
-            InlineKeyboardMarkup с одной кнопкой-ссылкой.
+        Returns:
+            InlineKeyboardMarkup с кнопкой-ссылкой.
         """
         builder = InlineKeyboardBuilder()
 
@@ -155,13 +153,13 @@ class AdminKeyboards:
     @staticmethod
     def api_settings_menu(is_local_mode: bool):
         """
-        ⚙️ Меню настроек API (Telegram Local Bot API – для справки).
+        Меню настроек API (Telegram Local Bot API – для справки).
 
         В оригинале здесь были кнопки переключения между Local и Public API,
         проверки статуса и возврата. В MAX этот функционал неактуален,
         но оставлен для совместимости, чтобы не ломать логику навигации.
 
-        Аргументы:
+        Args:
             is_local_mode (bool): флаг, включён ли Local Bot API (из settings).
 
         Кнопки:
@@ -169,7 +167,7 @@ class AdminKeyboards:
         - Проверка статуса.
         - Назад.
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup.
         """
         builder = InlineKeyboardBuilder()
@@ -192,12 +190,12 @@ class AdminKeyboards:
     @staticmethod
     def api_settings_back():
         """
-        🔙 Кнопка возврата из инструкций API.
+        Кнопка возврата из инструкций API.
 
         Используется после отображения инструкции по переключению режима,
         чтобы вернуться к меню настроек.
 
-        Возвращает:
+        Returns:
             InlineKeyboardMarkup с одной кнопкой.
         """
         builder = InlineKeyboardBuilder()

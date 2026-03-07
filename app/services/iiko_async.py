@@ -1,6 +1,11 @@
 """
 Асинхронный клиент для работы с iiko Cloud API v1.
-Использует aiohttp и asyncio.
+=====================================================
+Использует aiohttp и asyncio. Реализует получение токена, запрос информации о клиенте,
+регистрацию/обновление клиента, добавление карт, управление программами лояльности.
+
+Все методы автоматически управляют токеном доступа (получают при необходимости и кэшируют).
+При сетевых ошибках выполняются повторные попытки с экспоненциальной задержкой (tenacity).
 """
 
 import asyncio
@@ -18,6 +23,13 @@ class AsyncIikoApi:
     """Асинхронный клиент для взаимодействия с iiko API."""
 
     def __init__(self, api_key: str = None, organization_id: str = None):
+        """
+        Инициализирует клиента.
+
+        Args:
+            api_key (str, optional): Ключ API iiko (если не указан, берётся из settings.IIKO_API_KEY).
+            organization_id (str, optional): ID организации (если не указан, берётся из settings.DEFAULT_ORG_ID).
+        """
         self.api_key = api_key or settings.IIKO_API_KEY
         self.organization_id = organization_id or settings.DEFAULT_ORG_ID
         self.base_url = "https://api-ru.iiko.services/api/1"
@@ -27,18 +39,23 @@ class AsyncIikoApi:
         self._lock = asyncio.Lock()  # блокировка для доступа к токену
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Возвращает сессию (создаёт при первом вызове)."""
+        """Возвращает сессию aiohttp (создаёт при первом вызове)."""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
 
     async def close(self):
-        """Закрывает сессию. Должен быть вызван при остановке бота."""
+        """Закрывает сессию aiohttp. Должен быть вызван при остановке бота."""
         if self._session and not self._session.closed:
             await self._session.close()
 
     async def _is_token_valid(self) -> bool:
-        """Проверяет валидность текущего токена (без блокировки, вызывать внутри _lock)."""
+        """
+        Проверяет валидность текущего токена (без блокировки, вызывать внутри _lock).
+
+        Returns:
+            bool: True, если токен существует и его срок действия не истёк.
+        """
         if not self.token or not self.token_expire_time:
             return False
         return datetime.now() < self.token_expire_time
@@ -50,11 +67,13 @@ class AsyncIikoApi:
     )
     async def _get_token(self) -> Optional[str]:
         """
-        Получает токен доступа к API. Токен действителен 15 минут.
+        Получает токен доступа к API iiko. Токен действителен 15 минут.
         При неудаче делает до 3 повторных попыток.
+
+        Returns:
+            Optional[str]: токен или None в случае ошибки.
         """
         async with self._lock:
-            # Проверяем, действителен ли текущий токен
             if await self._is_token_valid():
                 logger.debug("Используем существующий токен iiko")
                 return self.token
@@ -82,15 +101,19 @@ class AsyncIikoApi:
                 logger.error(f"Ошибка получения токена iiko: {e}")
                 raise  # для повторных попыток tenacity
 
-    def _format_phone(self, phone: str) -> str:
-        """Приводит номер телефона к формату +7XXXXXXXXXX."""
+    @staticmethod
+    def _format_phone(phone: str) -> str:
+        """
+        Приводит номер телефона к формату +7XXXXXXXXXX.
 
-        # Создаём пустую строку, куда будем добавлять цифры
+        Args:
+            phone (str): исходный номер (может содержать любые символы).
+
+        Returns:
+            str: отформатированный номер с '+'.
+        """
         digits = ""
-
-        # Перебираем каждый символ в исходной строке
         for character in phone:
-            # Если символ – цифра, добавляем его к результату
             if character.isdigit():
                 digits += character
 
@@ -106,6 +129,12 @@ class AsyncIikoApi:
     async def get_customer_info(self, phone: str) -> Optional[Dict[str, Any]]:
         """
         Получает информацию о клиенте по номеру телефона.
+
+        Args:
+            phone (str): номер телефона (в любом формате).
+
+        Returns:
+            Optional[Dict[str, Any]]: словарь с данными клиента (см. _extract_customer_info) или None.
         """
         token = await self._get_token()
         if not token:
@@ -158,13 +187,29 @@ class AsyncIikoApi:
             consent_status: int = 0,
             should_receive_promo: bool = True,
             should_receive_loyalty: bool = True,
-            customer_id: Optional[str] = None  # новый параметр
+            customer_id: Optional[str] = None
     ) -> Tuple[Optional[str], str]:
         """
         Регистрирует нового клиента или обновляет существующего.
-        Если customer_id передан, обновляет существующего клиента.
-        """
 
+        Если customer_id передан, обновляет существующего клиента.
+
+        Args:
+            phone (str): номер телефона.
+            name (str): имя.
+            surname (str): фамилия.
+            middle_name (str): отчество.
+            birth_date (Optional[str]): дата рождения в формате "yyyy-MM-dd HH:mm:ss.fff".
+            sex (Optional[int]): пол (1 - мужской, 2 - женский).
+            email (str): email.
+            consent_status (int): статус согласия (0 - неизвестно, 1 - согласен).
+            should_receive_promo (bool): получать рекламные уведомления.
+            should_receive_loyalty (bool): получать уведомления по программе лояльности.
+            customer_id (Optional[str]): ID существующего клиента для обновления.
+
+        Returns:
+            Tuple[Optional[str], str]: (customer_id, сообщение) или (None, сообщение_об_ошибке).
+        """
         token = await self._get_token()
         if not token:
             return None, "❌ Не удалось получить токен авторизации"
@@ -182,7 +227,6 @@ class AsyncIikoApi:
             "consentStatus": consent_status,
             "organizationId": self.organization_id
         }
-        # Добавляем поля только если они предоставлены
         if surname:
             data["surName"] = surname
         if middle_name:
@@ -194,7 +238,7 @@ class AsyncIikoApi:
         if email:
             data["email"] = email
         if customer_id:
-            data["id"] = customer_id  # добавляем id для обновления
+            data["id"] = customer_id
 
         session = await self._get_session()
         try:
@@ -220,6 +264,13 @@ class AsyncIikoApi:
     async def add_card(self, customer_id: str, card_number: str) -> Tuple[bool, str]:
         """
         Добавляет карту клиенту.
+
+        Args:
+            customer_id (str): ID клиента.
+            card_number (str): номер карты.
+
+        Returns:
+            Tuple[bool, str]: (успех, сообщение).
         """
         token = await self._get_token()
         if not token:
@@ -258,6 +309,9 @@ class AsyncIikoApi:
     async def get_loyalty_programs(self) -> List[Dict[str, Any]]:
         """
         Получает список программ лояльности.
+
+        Returns:
+            List[Dict[str, Any]]: список программ (каждая программа содержит id, name и др.).
         """
         token = await self._get_token()
         if not token:
@@ -298,6 +352,13 @@ class AsyncIikoApi:
         """
         Подключает клиента к программе лояльности.
         Если program_id не указан, выбирается первая доступная программа.
+
+        Args:
+            customer_id (str): ID клиента.
+            program_id (Optional[str]): ID программы лояльности.
+
+        Returns:
+            Tuple[bool, str]: (успех, сообщение).
         """
         if not program_id:
             programs = await self.get_loyalty_programs()
@@ -347,9 +408,22 @@ class AsyncIikoApi:
             logger.error(f"Сетевая ошибка при подключении к программе: {e}")
             return False, "❌ Ошибка сети при подключении к программе"
 
-    def _extract_customer_info(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def _extract_customer_info(data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Извлекает из ответа API информацию о клиенте в удобном формате.
+        Извлекает из ответа API iiko информацию о клиенте в удобном формате.
+
+        Args:
+            data (Dict[str, Any]): сырой ответ от API.
+
+        Returns:
+            Dict[str, Any]: словарь с полями:
+                - customer_id: ID клиента
+                - name: полное имя (surname + name)
+                - phone: телефон
+                - balance: текущий баланс бонусов
+                - program_name: название программы лояльности
+                - cards: список карт (каждая содержит number, valid_to)
         """
         result = {
             'customer_id': data.get('id'),
@@ -384,12 +458,13 @@ class AsyncIikoApi:
                 'number': card.get('number', ''),
                 'valid_to': card.get('validToDate', '')
             }
-            if card_info['valid_to']:
+            valid_to = card_info.get('valid_to')
+            if valid_to:
                 try:
-                    date_obj = datetime.strptime(card_info['valid_to'], '%Y-%m-%d %H:%M:%S.%f')
+                    date_obj = datetime.strptime(valid_to, '%Y-%m-%d %H:%M:%S.%f')
                     card_info['valid_to'] = date_obj.strftime('%d.%m.%Y')
-                except:
-                    pass
+                except ValueError:
+                    logger.debug(f"Не удалось распарсить дату карты: {valid_to}")
             result['cards'].append(card_info)
 
         return result

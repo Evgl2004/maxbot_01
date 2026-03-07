@@ -5,6 +5,8 @@
 - главного меню (баланс, карта, отдел заботы, вакансии)
 - подменю отдела заботы
 - кнопок возврата
+
+Все клавиатуры создаются с помощью InlineKeyboardBuilder из maxapi.
 """
 
 from maxapi.types import CallbackButton
@@ -13,15 +15,18 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 def get_main_menu_keyboard():
     """
-    🏠 Главное меню бота.
+    Главное меню бота.
 
     Содержит четыре кнопки:
     - «💰 Мой баланс» – просмотр бонусного баланса.
     - «🪪 Виртуальная карта» – показать карты и QR-коды.
-    - «🆘 Отдел заботы» – переход вложенное меню поддержки.
+    - «🆘 Отдел заботы» – переход во вложенное меню поддержки.
     - «💼 Вакансии» – информация о вакансиях.
 
     Каждая кнопка при нажатии отправляет callback с соответствующим payload.
+
+    Returns:
+        InlineKeyboardMarkup: готовая клавиатура (объект вложения).
     """
     builder = InlineKeyboardBuilder()
 
@@ -43,12 +48,12 @@ def get_main_menu_keyboard():
 
 def get_support_submenu_keyboard(has_tickets: bool = False):
     """
-    🆘 Подменю отдела заботы.
+    Подменю отдела заботы.
 
     В зависимости от наличия тикетов у пользователя может показывать
     дополнительную кнопку «Мои обращения».
 
-    Аргументы:
+    Args:
         has_tickets (bool): есть ли у пользователя открытые тикеты.
 
     Кнопки:
@@ -57,6 +62,9 @@ def get_support_submenu_keyboard(has_tickets: bool = False):
     - «📋 Мои обращения» – просмотр списка тикетов (если has_tickets=True).
     - «📧 Контакты» – контактная информация.
     - «🔙 Назад в меню» – возврат в главное меню.
+
+    Returns:
+        InlineKeyboardMarkup: клавиатура.
     """
     builder = InlineKeyboardBuilder()
 
@@ -84,9 +92,12 @@ def get_support_submenu_keyboard(has_tickets: bool = False):
 
 def get_back_to_main_keyboard():
     """
-    🔙 Кнопка возврата в главное меню.
+    Кнопка возврата в главное меню.
 
     Используется в разделах, где нет собственного подменю.
+
+    Returns:
+        InlineKeyboardMarkup: клавиатура с одной кнопкой.
     """
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -97,9 +108,12 @@ def get_back_to_main_keyboard():
 
 def get_back_to_support_keyboard():
     """
-    🔙 Кнопка возврата в отдел заботы.
+    Кнопка возврата в отдел заботы.
 
     Используется внутри разделов отдела заботы (отзыв, вопрос, контакты).
+
+    Returns:
+        InlineKeyboardMarkup: клавиатура с одной кнопкой.
     """
     builder = InlineKeyboardBuilder()
     builder.row(

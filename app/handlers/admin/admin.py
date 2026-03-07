@@ -7,7 +7,16 @@
 - приёма сообщения для рассылки
 - добавления кнопки
 - подтверждения рассылки
-- запуска рассылки через сервис BroadcastService
+- запуска рассылки через сервис BroadcastService (временно заглушка)
+- команды /cancel для отмены текущего состояния
+
+Все хендлеры используют корректные методы maxapi:
+- Текст сообщения: event.message.body.text
+- Редактирование: event.bot.update_message с обязательным message_id
+- Отправка клавиатур: attachments=[keyboard]
+- Работа с FSM: context (MemoryContext) передаётся вторым параметром
+- Ответ на callback: await event.answer("")
+- Отправка простых сообщений: bot.send_message
 """
 
 import re
@@ -25,7 +34,14 @@ router = Router()
 
 
 def is_admin(user_id: int) -> bool:
-    """Проверка, является ли пользователь администратором."""
+    """Проверяет, является ли пользователь администратором.
+
+    Args:
+        user_id (int): ID пользователя.
+
+    Returns:
+        bool: True, если пользователь есть в списке ADMIN_USER_IDS.
+    """
     return settings.is_admin(user_id)
 
 
@@ -33,7 +49,13 @@ def is_admin(user_id: int) -> bool:
 @router.message_created(Command('admin'))
 async def admin_command(event: MessageCreated) -> None:
     """
-    Обработчик команды /admin. Показывает статистику и меню администратора.
+    Обработчик команды /admin. Показывает статистику и главное меню администратора.
+
+    Если пользователь не админ, выводит сообщение об ошибке.
+    Статистика берётся из БД (таблица bot_stats).
+
+    Args:
+        event (MessageCreated): событие создания сообщения.
     """
     if not is_admin(event.sender.user_id):
         await event.message.answer(text="❌ У вас нет прав администратора")
@@ -69,6 +91,13 @@ async def admin_command(event: MessageCreated) -> None:
 async def start_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
+
+    Устанавливает состояние AdminStates.broadcast_message и просит
+    администратора отправить сообщение для рассылки.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для установки состояния
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
@@ -92,15 +121,20 @@ async def start_broadcast(event: MessageCallback, context: MemoryContext) -> Non
 async def receive_broadcast_message(event: MessageCreated, context: MemoryContext) -> None:
     """
     Получение сообщения, которое будет разослано.
+
+    Сохраняет факт получения сообщения в контексте (пока без сохранения самого сообщения)
+    и предлагает добавить кнопку или отправить без кнопки.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для сохранения данных и управления состоянием
     """
     if not is_admin(event.sender.user_id):
         await context.clear()
         return
 
     bot = event.bot
-    # Сохраняем само сообщение в контексте (объект MessageCreated хранить нельзя, лучше сохранить его данные)
-    # Вместо сохранения всего сообщения будем использовать прямую передачу в BroadcastService позже.
-    # Пока просто запомним, что сообщение получено, и перейдём к выбору кнопки.
+    # Запоминаем, что сообщение получено (само сообщение будем передавать в BroadcastService позже)
     await context.update_data(broadcast_message_received=True)
 
     users_count = await db.get_active_users_count()
@@ -120,6 +154,13 @@ async def receive_broadcast_message(event: MessageCreated, context: MemoryContex
 async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
+
+    Устанавливает состояние AdminStates.broadcast_button и просит ввести
+    кнопку в формате "Текст | URL".
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для установки состояния
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
@@ -145,13 +186,20 @@ async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext
 async def receive_broadcast_button(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает ввод кнопки (текст и URL).
+
+    Проверяет формат "Текст | URL", сохраняет данные в контексте,
+    показывает превью кнопки и переходит к подтверждению рассылки.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для сохранения данных
     """
     if not is_admin(event.sender.user_id):
         await context.clear()
         return
 
     bot = event.bot
-    if not event.message.body.text:                           # <-- исправлено
+    if not event.message.body.text:
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте текстовое сообщение."
@@ -159,7 +207,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
         return
 
     button_pattern = r"^(.+?)\s*\|\s*(https?://.+)$"
-    match = re.match(button_pattern, event.message.body.text.strip())  # <-- исправлено
+    match = re.match(button_pattern, event.message.body.text.strip())
 
     if not match:
         await bot.send_message(
@@ -206,9 +254,14 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
 
 # ---------- Рассылка без кнопки ----------
 @router.message_callback(Command('broadcast_no_button'))
-async def broadcast_without_button(event: MessageCallback, context: MemoryContext) -> None:
+async def broadcast_without_button(event: MessageCallback) -> None:
     """
     Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
+
+    Показывает окно подтверждения с количеством получателей.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
@@ -232,7 +285,14 @@ async def broadcast_without_button(event: MessageCallback, context: MemoryContex
 @router.message_callback(Command('broadcast_confirm_yes'))
 async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
-    Запуск рассылки.
+    Запуск рассылки (временно – заглушка).
+
+    В будущем здесь будет вызываться BroadcastService.
+    Сейчас просто показывает сообщение о запуске и очищает контекст.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для очистки
     """
     if not is_admin(event.user.user_id):
         await event.answer("❌ Нет прав")
@@ -253,22 +313,42 @@ async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> N
 async def cancel_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена рассылки.
+
+    Очищает контекст и заменяет сообщение на «❌ Рассылка отменена».
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
+        context (MemoryContext): контекст FSM для очистки.
     """
     if context:
         await context.clear()
     await event.answer("")
-    await event.message.edit_text(text="❌ Рассылка отменена", attachments=[])
+    await event.bot.update_message(
+        message_id=event.message.id,
+        text="❌ Рассылка отменена",
+        attachments=[]
+    )
 
 
 @router.message_callback(Command('broadcast_cancel'))
 async def cancel_broadcast_creation(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена создания рассылки на любом этапе.
+
+    Очищает контекст и заменяет сообщение на «❌ Создание рассылки отменено».
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для очистки
     """
     if context:
         await context.clear()
     await event.answer("")
-    await event.message.edit_text(text="❌ Создание рассылки отменено", attachments=[])
+    await event.bot.update_message(
+        message_id=event.message.id,
+        text="❌ Создание рассылки отменено",
+        attachments=[]
+    )
 
 
 # ---------- Команда /cancel для отмены состояния ----------
@@ -276,6 +356,13 @@ async def cancel_broadcast_creation(event: MessageCallback, context: MemoryConte
 async def cancel_any_state(event: MessageCreated, context: MemoryContext) -> None:
     """
     Отмена любого текущего состояния (если есть).
+
+    Если пользователь находится в каком-либо состоянии FSM, оно очищается.
+    Иначе выводится информационное сообщение.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для проверки и очистки состояния
     """
     if not is_admin(event.sender.user_id):
         return

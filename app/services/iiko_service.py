@@ -1,5 +1,8 @@
 """
 Асинхронный сервис для работы с iiko API.
+============================================
+Предоставляет высокоуровневые функции для использования в хендлерах.
+Инициализирует глобальный клиент и экспортирует удобные методы.
 """
 
 from typing import Optional, Dict, Any, Tuple, List
@@ -44,15 +47,10 @@ async def register_customer(user, customer_id: Optional[str] = None) -> Tuple[Op
     """
     Регистрирует клиента в iiko, используя все доступные данные из анкеты.
     """
-
-    # Преобразуем пол в формат iiko (1 - male, 2 - female)
     sex_map = {"male": 1, "female": 2}
     sex = sex_map.get(user.gender) if user.gender else None
 
-    # Формат даты для iiko: "yyyy-MM-dd HH:mm:ss.fff"
     birth_date_str = user.birth_date.strftime("%Y-%m-%d 00:00:00.000") if user.birth_date else None
-
-    # Определяем consent_status: 1 если rules_accepted=True, иначе 0 (unknown)
     consent_status = 1 if user.rules_accepted else 0
 
     return await _get_client().register_customer(
@@ -89,15 +87,10 @@ async def issue_card_for_customer(phone: str, customer_id: str) -> Tuple[bool, s
     Полный процесс выдачи карты клиенту.
     Возвращает (успех, сообщение, номер_карты).
     """
-
     from datetime import datetime
 
-    # Создаём пустую строку, куда будем добавлять цифры
     phone_digits = ""
-
-    # Перебираем каждый символ в исходной строке
     for character in phone:
-        # Если символ – цифра, добавляем его к результату
         if character.isdigit():
             phone_digits += character
 

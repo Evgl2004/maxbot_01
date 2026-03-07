@@ -6,6 +6,8 @@
 - просмотра деталей тикета
 - ответа на тикет
 - уведомлений о новых ответах
+
+Все клавиатуры создаются с помощью InlineKeyboardBuilder из maxapi.
 """
 
 from typing import List
@@ -18,7 +20,7 @@ from app.database.models import Ticket  # для аннотации типа
 
 class UserTicketsKeyboard:
     """
-    👤 Клавиатуры для пользовательского раздела «Мои обращения».
+    Клавиатуры для пользовательского раздела «Мои обращения».
 
     Все методы возвращают готовую inline-клавиатуру (объект вложения),
     которую нужно передавать в параметре attachments при отправке сообщения.
@@ -27,41 +29,37 @@ class UserTicketsKeyboard:
     @staticmethod
     def tickets_list(tickets: List[Ticket], current_page: int, total_pages: int):
         """
-        📋 Список тикетов пользователя с пагинацией.
+        Список тикетов пользователя с пагинацией.
 
         Для каждого тикета создаётся кнопка с эмодзи статуса, номером, датой и
         первыми 20 символами вопроса. Кнопка ведёт к просмотру деталей тикета.
 
-        Аргументы:
+        Args:
             tickets (List[Ticket]): список тикетов для текущей страницы
             current_page (int): номер текущей страницы
             total_pages (int): общее количество страниц
 
-        Возвращает:
-            InlineKeyboardMarkup (attachment): клавиатура с кнопками тикетов,
-            кнопками навигации и кнопкой возврата в отдел заботы.
+        Returns:
+            InlineKeyboardMarkup: клавиатура с кнопками тикетов,
+                                  кнопками навигации и кнопкой возврата в отдел заботы.
         """
         builder = InlineKeyboardBuilder()
 
         # Кнопки для каждого тикета
         for ticket in tickets:
-            # Выбираем эмодзи в зависимости от статуса
             status_emoji = {
                 "open": "🆕",
                 "in_progress": "🔄",
                 "closed": "🔒"
             }.get(ticket.status, "❓")
 
-            # Обрезаем длинный вопрос
             short_question = (ticket.message[:20] + "…") if len(ticket.message) > 20 else ticket.message
-            # Формируем текст кнопки: статус, номер, дата, вопрос
             button_text = f"{status_emoji} #{ticket.id} от {ticket.created_at.strftime('%d.%m')}: {short_question}"
-            # Кнопка ведёт к деталям тикета
             builder.row(
                 CallbackButton(text=button_text, payload=f"user_ticket_{ticket.id}")
             )
 
-        # Кнопки пагинации (Предыдущая / Следующая)
+        # Кнопки пагинации
         nav_row = []
         if current_page > 1:
             nav_row.append(
@@ -90,9 +88,12 @@ class UserTicketsKeyboard:
     @staticmethod
     def back_to_support():
         """
-        🔙 Простая кнопка возврата в отдел заботы.
+        Простая кнопка возврата в отдел заботы.
 
         Используется в сообщениях, где нет других действий.
+
+        Returns:
+            InlineKeyboardMarkup: клавиатура с одной кнопкой.
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -103,18 +104,18 @@ class UserTicketsKeyboard:
     @staticmethod
     def ticket_details(ticket_id: int, status: str):
         """
-        🎫 Детали тикета для пользователя.
+        Детали тикета для пользователя.
 
         Кнопки:
         - «📝 Ответить» – если тикет не закрыт (позволяет ответить).
         - «🔙 Назад к списку» – возврат к списку обращений.
 
-        Аргументы:
+        Args:
             ticket_id (int): ID тикета (для формирования payload).
             status (str): статус тикета ('open', 'in_progress', 'closed').
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
 
@@ -132,16 +133,16 @@ class UserTicketsKeyboard:
     @staticmethod
     def cancel_reply(ticket_id: int):
         """
-        ❌ Отмена ответа на тикет.
+        Отмена ответа на тикет.
 
         Появляется, когда пользователь начал писать ответ, но передумал.
         Кнопка возвращает к деталям тикета.
 
-        Аргументы:
+        Args:
             ticket_id (int): ID тикета.
 
-        Возвращает:
-            InlineKeyboardMarkup с одной кнопкой «❌ Отмена».
+        Returns:
+            InlineKeyboardMarkup: клавиатура с одной кнопкой «❌ Отмена».
         """
         builder = InlineKeyboardBuilder()
         builder.row(
@@ -152,18 +153,18 @@ class UserTicketsKeyboard:
     @staticmethod
     def notification_keyboard(ticket_id: int, status: str):
         """
-        🔔 Клавиатура для уведомления о новом ответе модератора.
+        Клавиатура для уведомления о новом ответе модератора.
 
         Отправляется пользователю, когда модератор ответил на его тикет.
         Содержит кнопку «📝 Ответить» (если тикет не закрыт) и
         кнопку «📋 Мои обращения».
 
-        Аргументы:
+        Args:
             ticket_id (int): ID тикета
             status (str): текущий статус тикета
 
-        Возвращает:
-            InlineKeyboardMarkup.
+        Returns:
+            InlineKeyboardMarkup: клавиатура.
         """
         builder = InlineKeyboardBuilder()
 

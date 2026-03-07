@@ -11,13 +11,13 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 def retry_keyboard():
     """
-    🔄 Клавиатура для повторной попытки регистрации в iiko.
+    Клавиатура для повторной попытки регистрации в iiko.
 
     Используется при временных сбоях сети или ошибках API iiko.
     Пользователь может нажать кнопку, чтобы повторить попытку синхронизации.
 
-    Возвращает:
-        InlineKeyboardMarkup (attachment): клавиатура с одной кнопкой.
+    Returns:
+        InlineKeyboardMarkup: клавиатура с одной кнопкой.
     """
     builder = InlineKeyboardBuilder()
     builder.row(
