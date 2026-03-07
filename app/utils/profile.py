@@ -31,7 +31,7 @@ async def show_profile_review(
     Returns:
         None
     """
-    user_id = event.sender.user_id if isinstance(event, MessageCreated) else event.user.user_id
+    user_id = event.from_user.user_id if isinstance(event, MessageCreated) else event.user.user_id
     bot = event.bot
 
     user = await db.get_user(user_id)

@@ -240,7 +240,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
-    if not ticket or ticket.user_id != event.sender.user_id:
+    if not ticket or ticket.user_id != event.from_user.user_id:
         await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка доступа")
         await context.clear()
         return
@@ -249,7 +249,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
     await ticket_service.add_message_to_ticket(
         ticket_id=ticket_id,
         sender_type="user",
-        sender_id=event.sender.user_id,
+        sender_id=event.from_user.user_id,
         message=event.message.body.text
     )
 
