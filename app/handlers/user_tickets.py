@@ -64,7 +64,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
             "📭 У вас пока нет обращений.\n\n"
             "Чтобы создать обращение, нажмите «❓ Мне только спросить» в меню отдела заботы."
         )
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[UserTicketsKeyboard.back_to_support()]
@@ -73,7 +73,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
         return
 
     text = f"📋 Ваши обращения (страница 1/{total_pages}):"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[UserTicketsKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
@@ -112,7 +112,7 @@ async def user_tickets_page(event: MessageCallback) -> None:
 
     if not tickets:
         text = "📭 На этой странице нет обращений."
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[UserTicketsKeyboard.back_to_support()]
@@ -121,7 +121,7 @@ async def user_tickets_page(event: MessageCallback) -> None:
         return
 
     text = f"📋 Ваши обращения (страница {page}/{total_pages}):"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[UserTicketsKeyboard.tickets_list(tickets, current_page=page, total_pages=total_pages)]
@@ -158,7 +158,7 @@ async def user_ticket_details(event: MessageCallback) -> None:
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=ticket_text,
         attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)]
@@ -203,7 +203,7 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
         f"📝 *Ответ на тикет #{ticket_id}*\n\n"
         f"Введите ваш ответ:"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[UserTicketsKeyboard.cancel_reply(ticket_id)]

@@ -58,7 +58,7 @@ async def show_profile_review(
             attachments=[get_review_keyboard()]
         )
     else:
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_review_keyboard()]

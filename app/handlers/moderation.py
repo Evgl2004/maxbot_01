@@ -148,7 +148,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
     else:
         stats_text += "⏱ Среднее время ответа: -\n"
 
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=stats_text,
         attachments=[ModerationKeyboard.main_menu()]
@@ -173,7 +173,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
 
     if not tickets:
         text = "📭 Нет тикетов"
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[ModerationKeyboard.main_menu()]
@@ -182,7 +182,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
         return
 
     text = f"📋 Все тикеты (страница 1/{total_pages}):"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
@@ -227,7 +227,7 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
 
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют."
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
@@ -236,7 +236,7 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница 1/{total_pages}):"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(
@@ -295,7 +295,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
 
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют на странице {page}."
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
@@ -304,7 +304,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница {page}/{total_pages}):"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(
@@ -352,7 +352,7 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)]
@@ -397,7 +397,7 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
         f"Введите ваш ответ пользователю:\n"
         f"(Поддерживается HTML форматирование)"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)]
@@ -510,7 +510,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
         text = "❌ Ошибка при загрузке тикета"
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text
         )
@@ -519,7 +519,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]

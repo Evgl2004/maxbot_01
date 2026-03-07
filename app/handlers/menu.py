@@ -81,7 +81,7 @@ async def process_balance(event: MessageCallback) -> None:
     user = await db.get_user(event.user.user_id)
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию."
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_back_to_main_keyboard()]
@@ -95,7 +95,7 @@ async def process_balance(event: MessageCallback) -> None:
             "❌ Информация о бонусах временно недоступна.\n"
             "Пожалуйста, попробуйте позже или обратитесь к администратору."
         )
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_back_to_main_keyboard()]
@@ -111,7 +111,7 @@ async def process_balance(event: MessageCallback) -> None:
         f"Ближайшая дата сгорания: —\n"
         f"Количество бонусов к сгоранию: —\n"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_back_to_main_keyboard()]
@@ -134,7 +134,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     user = await db.get_user(event.user.user_id)
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию через /start."
-        await bot.update_message(
+        await bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_back_to_main_keyboard()]
@@ -149,7 +149,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         customer_id, reg_msg = await iiko_service.register_customer(user)
         if not customer_id:
             text = f"❌ Не удалось зарегистрировать вас в бонусной системе.\nПричина: {reg_msg}\n\nПопробуйте позже."
-            await bot.update_message(
+            await bot.edit_message(
                 message_id=event.message.id,
                 text=text,
                 attachments=[retry_keyboard()]
@@ -162,7 +162,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         customer_id, upd_msg = await iiko_service.register_customer(user, customer_id=existing_customer_id)
         if not customer_id:
             text = f"❌ Ошибка получения данных клиента. Попробуйте позже."
-            await bot.update_message(
+            await bot.edit_message(
                 message_id=event.message.id,
                 text=text,
                 attachments=[retry_keyboard()]
@@ -178,7 +178,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         success, msg, card_number = await iiko_service.issue_card_for_customer(phone, customer_id)
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {msg}\n\nПопробуйте позже."
-            await bot.update_message(
+            await bot.edit_message(
                 message_id=event.message.id,
                 text=text,
                 attachments=[retry_keyboard()]
@@ -256,7 +256,7 @@ async def process_support(event: MessageCallback) -> None:
     has_tickets = tickets_count > 0
 
     text = "🆘 *Отдел заботы*\n\nВыберите действие:"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
@@ -284,7 +284,7 @@ async def process_vacancies(event: MessageCallback) -> None:
         "бренда Тюмени – переходи по ссылке и оставляй заявку!\n\n"
         "👉 [Посмотреть все вакансии](https://team.sobolevalliance.su/vacancy)"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_back_to_main_keyboard()]
@@ -305,7 +305,7 @@ async def process_feedback(event: MessageCallback) -> None:
         "Мы будем рады узнать ваше мнение! Перейдите по ссылке ниже:\n"
         "👉 [Форма обратной связи](https://example.com/feedback) (ссылка будет заменена)"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_back_to_support_keyboard()]
@@ -327,7 +327,7 @@ async def process_question(event: MessageCallback, context: MemoryContext) -> No
         "Пожалуйста, отправьте ваш вопрос, и наш модератор свяжется с вами в ближайшее время.\n\n"
         "Введите ваш вопрос:"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_back_to_support_keyboard()]
@@ -419,7 +419,7 @@ async def process_contacts(event: MessageCallback) -> None:
         "Сайт: https://sobolevalliance.su\n"
         "Соцсети: @sobolevalliance"
     )
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_back_to_support_keyboard()]
@@ -472,7 +472,7 @@ async def process_back_to_support(event: MessageCallback, context: MemoryContext
     has_tickets = tickets_count > 0
 
     text = "🆘 *Отдел заботы*\n\nВыберите действие:"
-    await bot.update_message(
+    await bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
