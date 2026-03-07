@@ -91,7 +91,7 @@ async def mod_command(event: MessageCreated) -> None:
         stats_text += "⏱ Среднее время ответа: -\n"
 
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=stats_text,
         attachments=[ModerationKeyboard.main_menu()]
     )
@@ -120,7 +120,7 @@ async def moderator_menu(event: MessageCreated) -> None:
         stats_text += "⏱ Среднее время ответа: -\n"
 
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=stats_text,
         attachments=[ModerationKeyboard.main_menu()]
     )
@@ -420,14 +420,14 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
 
     if not event.message.body.text:
         await bot.send_message(
-            chat_id=event.chat.id,
+            chat_id=event.chat.chat_id,
             text="✍️ Пожалуйста, отправьте ответ текстовым сообщением."
         )
         return
 
     if not await is_moderator(event.from_user.user_id):
         await context.clear()
-        await bot.send_message(chat_id=event.chat.id, text="❌ У вас нет прав модератора")
+        await bot.send_message(chat_id=event.chat.chat_id, text="❌ У вас нет прав модератора")
         return
 
     context_data = await context.get_data()
@@ -438,7 +438,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await bot.send_message(chat_id=event.chat.id, text="❌ Тикет не найден")
+        await bot.send_message(chat_id=event.chat.chat_id, text="❌ Тикет не найден")
         await context.clear()
         return
 
@@ -472,7 +472,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
     )
