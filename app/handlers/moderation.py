@@ -74,7 +74,7 @@ async def mod_command(event: MessageCreated) -> None:
     Если пользователь не модератор, выводит сообщение об ошибке.
     Отображает статистику тикетов и главное меню модератора.
     """
-    if not await is_moderator(event.sender.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.message.answer(text="❌ У вас нет прав модератора")
         return
 
@@ -103,7 +103,7 @@ async def moderator_menu(event: MessageCreated) -> None:
 
     Аналогичен команде /mod.
     """
-    if not await is_moderator(event.sender.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.message.answer(text="❌ У вас нет прав модератора")
         return
 
@@ -425,7 +425,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
         )
         return
 
-    if not await is_moderator(event.sender.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await context.clear()
         await bot.send_message(chat_id=event.chat.id, text="❌ У вас нет прав модератора")
         return
@@ -446,7 +446,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     await ticket_service.add_message_to_ticket(
         ticket_id=ticket_id,
         sender_type="moderator",
-        sender_id=event.sender.user_id,
+        sender_id=event.from_user.user_id,
         message=event.message.body.text
     )
 

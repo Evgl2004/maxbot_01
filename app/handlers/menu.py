@@ -354,7 +354,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
         return
 
     # Получаем пользователя из БД (для full_name и т.д.)
-    user = await db.get_user(event.sender.user_id)
+    user = await db.get_user(event.from_user.user_id)
     if not user:
         await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка: пользователь не найден")
         await context.clear()
@@ -362,10 +362,10 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
 
     # Создаём тикет
     ticket = await ticket_service.create_ticket(
-        user_id=event.sender.user_id,
+        user_id=event.from_user.user_id,
         message=event.message.body.text,
-        user_username=event.sender.name,          # в MAX это поле может содержать username
-        user_first_name=event.sender.first_name or user.first_name_input
+        user_username=event.from_user.name,          # в MAX это поле может содержать username
+        user_first_name=event.from_user.first_name or user.first_name_input
     )
 
     await bot.send_message(
@@ -384,7 +384,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
         notification_text = (
             f"📬 *Новый тикет от пользователя!*\n\n"
             f"🎫 Тикет #{ticket.id}\n"
-            f"👤 Пользователь: {event.sender.name or event.sender.first_name}\n"
+            f"👤 Пользователь: {event.from_user.name or event.from_user.first_name}\n"
             f"❓ Вопрос: {event.message.body.text[:100]}{'...' if len(event.message.body.text) > 100 else ''}\n\n"
             f"📊 *Статистика:*\n"
             f"📬 Новые тикеты: {open_count}\n"

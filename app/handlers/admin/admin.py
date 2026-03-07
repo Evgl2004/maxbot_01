@@ -57,7 +57,7 @@ async def admin_command(event: MessageCreated) -> None:
     Args:
         event (MessageCreated): событие создания сообщения.
     """
-    if not is_admin(event.sender.user_id):
+    if not is_admin(event.from_user.user_id):
         await event.message.answer(text="❌ У вас нет прав администратора")
         return
 
@@ -129,7 +129,7 @@ async def receive_broadcast_message(event: MessageCreated, context: MemoryContex
         event (MessageCreated): событие создания сообщения
         context (MemoryContext): контекст FSM для сохранения данных и управления состоянием
     """
-    if not is_admin(event.sender.user_id):
+    if not is_admin(event.from_user.user_id):
         await context.clear()
         return
 
@@ -194,7 +194,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
         event (MessageCreated): событие создания сообщения
         context (MemoryContext): контекст FSM для сохранения данных
     """
-    if not is_admin(event.sender.user_id):
+    if not is_admin(event.from_user.user_id):
         await context.clear()
         return
 
@@ -364,7 +364,7 @@ async def cancel_any_state(event: MessageCreated, context: MemoryContext) -> Non
         event (MessageCreated): событие создания сообщения
         context (MemoryContext): контекст FSM для проверки и очистки состояния
     """
-    if not is_admin(event.sender.user_id):
+    if not is_admin(event.from_user.user_id):
         return
 
     current_state = await context.get_state()
