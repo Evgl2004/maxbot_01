@@ -126,7 +126,7 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback],
     elif field == 'gender':
         if isinstance(event, MessageCallback):
             # Если это callback – редактируем текущее сообщение
-            await event.bot.update_message(
+            await event.bot.edit_message(
                 message_id=event.message.id,
                 text="Выберите ваш пол:",
                 attachments=[get_gender_keyboard()]
@@ -210,7 +210,7 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
 
     await event.answer("Спасибо! Правила приняты.")
     # Убираем клавиатуру – редактируем сообщение
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]
@@ -327,7 +327,7 @@ async def process_review_correct(event: MessageCallback, context: MemoryContext)
         return
 
     await event.answer("")
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]
@@ -351,7 +351,7 @@ async def process_review_edit(event: MessageCallback, context: MemoryContext) ->
 
     await event.answer("")
     text = "🔧 Выберите, что хотите исправить:"
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=text,
         attachments=[get_edit_choice_keyboard()]
@@ -378,7 +378,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     if payload == "edit_first_name":
         text = "✍️ Введите новое имя:"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[]
@@ -387,7 +387,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     elif payload == "edit_last_name":
         text = "✍️ Введите новую фамилию:"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[]
@@ -396,7 +396,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     elif payload == "edit_gender":
         text = "Выберите ваш пол:"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_gender_keyboard()]
@@ -405,7 +405,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     elif payload == "edit_birth_date":
         text = "📅 Введите новую дату рождения в формате ДД.ММ.ГГГГ (например, 25.12.1990):"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[]
@@ -414,7 +414,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     elif payload == "edit_email":
         text = "📧 Введите новый email:"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[]
@@ -518,7 +518,7 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     )
 
     await event.answer("")
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]

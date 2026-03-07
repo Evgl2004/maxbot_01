@@ -83,7 +83,7 @@ async def sync_user_with_iiko(
         if not customer_id:
             text = f"❌ Не удалось зарегистрировать в iiko.\nПричина: {reg_msg}"
             if is_callback:
-                await bot.update_message(
+                await bot.edit_message(
                     message_id=message_id,
                     text=text,
                     attachments=[retry_keyboard()]
@@ -101,7 +101,7 @@ async def sync_user_with_iiko(
         if not customer_id:
             text = f"❌ Не удалось обновить данные в iiko.\nПричина: {upd_msg}"
             if is_callback:
-                await bot.update_message(
+                await bot.edit_message(
                     message_id=message_id,
                     text=text,
                     attachments=[retry_keyboard()]
@@ -121,7 +121,7 @@ async def sync_user_with_iiko(
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {card_msg}"
             if is_callback:
-                await bot.update_message(
+                await bot.edit_message(
                     message_id=message_id,
                     text=text,
                     attachments=[retry_keyboard()]

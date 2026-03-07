@@ -82,7 +82,7 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
     await event.answer("Спасибо! Правила приняты.")
 
     # Убираем клавиатуру – редактируем сообщение, оставляя текст без вложений
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]  # пустой список удаляет клавиатуру
@@ -249,7 +249,7 @@ async def process_gender(event: MessageCallback, context: MemoryContext) -> None
 
     await event.answer("")
     # Убираем клавиатуру – редактируем сообщение, оставляя текст
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]
@@ -346,7 +346,7 @@ async def process_review(event: MessageCallback, context: MemoryContext) -> None
     if event.callback.payload == "review_correct":
         await event.answer("")
         # Убираем клавиатуру
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=event.message.body.text,
             attachments=[]
@@ -361,7 +361,7 @@ async def process_review(event: MessageCallback, context: MemoryContext) -> None
     elif event.callback.payload == "review_edit":
         await event.answer("")
         text = "🔧 Выберите, что хотите исправить:"
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[get_edit_choice_keyboard()]
@@ -400,7 +400,7 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     if payload in mapping:
         new_state, text, keyboard = mapping[payload]
-        await event.bot.update_message(
+        await event.bot.edit_message(
             message_id=event.message.id,
             text=text,
             attachments=[keyboard] if keyboard else []
@@ -567,7 +567,7 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     )
 
     await event.answer("")
-    await event.bot.update_message(
+    await event.bot.edit_message(
         message_id=event.message.id,
         text=event.message.body.text,
         attachments=[]
