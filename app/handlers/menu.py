@@ -82,7 +82,7 @@ async def process_balance(event: MessageCallback) -> None:
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию."
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
@@ -96,7 +96,7 @@ async def process_balance(event: MessageCallback) -> None:
             "Пожалуйста, попробуйте позже или обратитесь к администратору."
         )
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
@@ -112,7 +112,7 @@ async def process_balance(event: MessageCallback) -> None:
         f"Количество бонусов к сгоранию: —\n"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_back_to_main_keyboard()]
     )
@@ -135,7 +135,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию через /start."
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
@@ -150,7 +150,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if not customer_id:
             text = f"❌ Не удалось зарегистрировать вас в бонусной системе.\nПричина: {reg_msg}\n\nПопробуйте позже."
             await bot.edit_message(
-                message_id=event.message.id,
+                message_id=event.message.body.mid,
                 text=text,
                 attachments=[retry_keyboard()]
             )
@@ -163,7 +163,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if not customer_id:
             text = f"❌ Ошибка получения данных клиента. Попробуйте позже."
             await bot.edit_message(
-                message_id=event.message.id,
+                message_id=event.message.body.mid,
                 text=text,
                 attachments=[retry_keyboard()]
             )
@@ -179,7 +179,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {msg}\n\nПопробуйте позже."
             await bot.edit_message(
-                message_id=event.message.id,
+                message_id=event.message.body.mid,
                 text=text,
                 attachments=[retry_keyboard()]
             )
@@ -194,7 +194,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
                 cards = [{'number': card_number}]
 
     # Удаляем сообщение с кнопкой, чтобы отправить несколько новых (QR-коды)
-    await bot.delete_message(event.message.id)
+    await bot.delete_message(event.message.body.mid)
 
     # Отправляем QR-коды для каждой карты
     for card in cards:
@@ -257,7 +257,7 @@ async def process_support(event: MessageCallback) -> None:
 
     text = "🆘 *Отдел заботы*\n\nВыберите действие:"
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
     )
@@ -285,7 +285,7 @@ async def process_vacancies(event: MessageCallback) -> None:
         "👉 [Посмотреть все вакансии](https://team.sobolevalliance.su/vacancy)"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_back_to_main_keyboard()]
     )
@@ -306,7 +306,7 @@ async def process_feedback(event: MessageCallback) -> None:
         "👉 [Форма обратной связи](https://example.com/feedback) (ссылка будет заменена)"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_back_to_support_keyboard()]
     )
@@ -328,7 +328,7 @@ async def process_question(event: MessageCallback, context: MemoryContext) -> No
         "Введите ваш вопрос:"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_back_to_support_keyboard()]
     )
@@ -420,7 +420,7 @@ async def process_contacts(event: MessageCallback) -> None:
         "Соцсети: @sobolevalliance"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_back_to_support_keyboard()]
     )
@@ -447,7 +447,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
 
     name = user.first_name_input or "Гость"
     text = f"👋 {name}, вы в главном меню.\nВыберите раздел:"
-    await bot.delete_message(event.message.id)
+    await bot.delete_message(event.message.body.mid)
     await bot.send_message(
         chat_id=event.message.chat.id,
         text=text,
@@ -473,7 +473,7 @@ async def process_back_to_support(event: MessageCallback, context: MemoryContext
 
     text = "🆘 *Отдел заботы*\n\nВыберите действие:"
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
     )

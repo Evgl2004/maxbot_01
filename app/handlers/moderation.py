@@ -149,7 +149,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
         stats_text += "⏱ Среднее время ответа: -\n"
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=stats_text,
         attachments=[ModerationKeyboard.main_menu()]
     )
@@ -174,7 +174,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
     if not tickets:
         text = "📭 Нет тикетов"
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[ModerationKeyboard.main_menu()]
         )
@@ -183,7 +183,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
 
     text = f"📋 Все тикеты (страница 1/{total_pages}):"
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
     )
@@ -228,7 +228,7 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют."
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
         )
@@ -237,7 +237,7 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница 1/{total_pages}):"
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(
             tickets,
@@ -296,7 +296,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют на странице {page}."
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
         )
@@ -305,7 +305,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница {page}/{total_pages}):"
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[ModerationKeyboard.tickets_list(
             tickets,
@@ -353,7 +353,7 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)]
     )
@@ -398,7 +398,7 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
         f"(Поддерживается HTML форматирование)"
     )
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=text,
         attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)]
     )
@@ -511,7 +511,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     if not ticket:
         text = "❌ Ошибка при загрузке тикета"
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text
         )
         return
@@ -520,7 +520,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
     )
