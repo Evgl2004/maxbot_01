@@ -107,7 +107,7 @@ async def start_broadcast(event: MessageCallback, context: MemoryContext) -> Non
     await context.set_state(AdminStates.broadcast_message)
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text="📤 <b>Создание рассылки</b>\n\n"
              "Отправьте сообщение любого типа (текст, фото, видео, документ и т.д.), "
              "которое хотите разослать всем пользователям бота.\n\n"
@@ -170,7 +170,7 @@ async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext
     await context.set_state(AdminStates.broadcast_button)
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text="🔗 <b>Добавление кнопки</b>\n\n"
              "Отправьте кнопку в формате:\n"
              "<code>Текст кнопки | https://example.com</code>\n\n"
@@ -271,7 +271,7 @@ async def broadcast_without_button(event: MessageCallback) -> None:
     users_count = await db.get_active_users_count()
 
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text=f"📤 <b>Подтверждение рассылки</b>\n\n"
              f"👥 Получателей: <b>{users_count}</b>\n"
              f"🔗 С кнопкой: <b>Нет</b>\n\n"
@@ -302,7 +302,7 @@ async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> N
 
     # ВРЕМЕННО: просто показываем сообщение о запуске
     await bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text="📤 <b>Рассылка запущена...</b> (заглушка, функционал в разработке)"
     )
     await event.answer("")
@@ -324,7 +324,7 @@ async def cancel_broadcast(event: MessageCallback, context: MemoryContext) -> No
         await context.clear()
     await event.answer("")
     await event.bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text="❌ Рассылка отменена",
         attachments=[]
     )
@@ -345,7 +345,7 @@ async def cancel_broadcast_creation(event: MessageCallback, context: MemoryConte
         await context.clear()
     await event.answer("")
     await event.bot.edit_message(
-        message_id=event.message.id,
+        message_id=event.message.body.mid,
         text="❌ Создание рассылки отменено",
         attachments=[]
     )
