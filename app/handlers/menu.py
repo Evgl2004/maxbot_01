@@ -7,6 +7,12 @@
 - подменю отдела заботы (отзыв, вопрос, контакты)
 - навигационных кнопок (назад в меню, назад в отдел заботы)
 - создания тикетов через раздел «Мне только спросить»
+
+Все хендлеры используют корректные методы maxapi:
+- Текст сообщения: event.message.body.text
+- Редактирование: event.bot.update_message
+- Отправка клавиатур: attachments=[keyboard]
+- Работа с FSM: context (MemoryContext) передаётся вторым параметром
 """
 
 from loguru import logger
@@ -39,11 +45,12 @@ async def show_main_menu(chat_id: int, bot, user_name: str = "Гость") -> No
     Отправляет пользователю главное меню.
 
     Может вызываться из разных мест (например, после регистрации или по команде /start).
+    Отправляет сообщение с главным меню и клавиатурой.
 
     Аргументы:
         chat_id (int): идентификатор чата, куда отправлять сообщение
         bot: экземпляр бота (для отправки сообщения)
-        user_name (str): имя пользователя для приветствия
+        user_name (str): имя пользователя для приветствия (по умолчанию "Гость")
     """
     text = (
         f"👋 {user_name}, добро пожаловать!\n"
@@ -53,7 +60,7 @@ async def show_main_menu(chat_id: int, bot, user_name: str = "Гость") -> No
     await bot.send_message(
         chat_id=chat_id,
         text=text,
-        attachments=[get_main_menu_keyboard()]
+        attachments=[get_main_menu_keyboard()]  # клавиатура передаётся как вложение
     )
 
 
@@ -62,10 +69,15 @@ async def show_main_menu(chat_id: int, bot, user_name: str = "Гость") -> No
 async def process_balance(event: MessageCallback) -> None:
     """
     Показывает информацию о балансе бонусов из iiko.
+
+    При нажатии на кнопку «💰 Мой баланс» запрашивает информацию о клиенте
+    из iiko по номеру телефона, сохранённому в БД, и отображает текущий баланс.
+    Если номер телефона не указан или информация недоступна, выводит сообщение об ошибке.
     """
     bot = event.bot
-    await event.answer("")
+    await event.answer("")  # убираем "часики" на кнопке
 
+    # Получаем пользователя из БД
     user = await db.get_user(event.user.user_id)
     if not user or not user.phone_number:
         text = "❌ У вас не указан номер телефона. Пожалуйста, пройдите регистрацию."
@@ -76,6 +88,7 @@ async def process_balance(event: MessageCallback) -> None:
         )
         return
 
+    # Запрашиваем информацию о клиенте из iiko
     client_info = await iiko_service.get_customer_info(user.phone_number)
     if client_info is None:
         text = (
@@ -111,6 +124,9 @@ async def process_virtual_card(event: MessageCallback) -> None:
     Показывает все карты пользователя из iiko с QR-кодами.
     Если карт нет – выпускает автоматически.
     Если клиент не найден в iiko – регистрирует и выпускает карту.
+
+    После получения списка карт удаляет текущее сообщение с кнопкой,
+    отправляет по одному QR-коду для каждой карты, а затем выводит итоговое сообщение.
     """
     bot = event.bot
     await event.answer("")
@@ -128,6 +144,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     phone = user.phone_number
     client_info = await iiko_service.get_customer_info(phone)
 
+    # Если клиент не найден – регистрируем
     if client_info is None:
         customer_id, reg_msg = await iiko_service.register_customer(user)
         if not customer_id:
@@ -140,21 +157,23 @@ async def process_virtual_card(event: MessageCallback) -> None:
             return
         client_info = {'customer_id': customer_id, 'cards': []}
     else:
-        if not client_info.get('customer_id'):
-            customer_id, reg_msg = await iiko_service.register_customer(user)
-            if not customer_id:
-                text = "❌ Ошибка получения данных клиента. Попробуйте позже."
-                await bot.update_message(
-                    message_id=event.message.id,
-                    text=text,
-                    attachments=[retry_keyboard()]
-                )
-                return
-            client_info['customer_id'] = customer_id
+        # Клиент существует – обновляем данные (например, если изменилось имя)
+        existing_customer_id = client_info['customer_id']
+        customer_id, upd_msg = await iiko_service.register_customer(user, customer_id=existing_customer_id)
+        if not customer_id:
+            text = f"❌ Ошибка получения данных клиента. Попробуйте позже."
+            await bot.update_message(
+                message_id=event.message.id,
+                text=text,
+                attachments=[retry_keyboard()]
+            )
+            return
+        client_info['customer_id'] = customer_id
 
     customer_id = client_info['customer_id']
     cards = client_info.get('cards', [])
 
+    # Если карт нет – выпускаем
     if not cards:
         success, msg, card_number = await iiko_service.issue_card_for_customer(phone, customer_id)
         if not success:
@@ -165,6 +184,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
                 attachments=[retry_keyboard()]
             )
             return
+        # После выпуска обновляем информацию о клиенте
         client_info = await iiko_service.get_customer_info(phone)
         if not client_info:
             cards = [{'number': card_number}]
@@ -173,12 +193,15 @@ async def process_virtual_card(event: MessageCallback) -> None:
             if not cards:
                 cards = [{'number': card_number}]
 
+    # Удаляем сообщение с кнопкой, чтобы отправить несколько новых (QR-коды)
     await bot.delete_message(event.message.id)
 
+    # Отправляем QR-коды для каждой карты
     for card in cards:
         card_number = card['number']
         qr_photo = await generate_qr_code(card_number)
 
+        # Сохраняем изображение во временный файл
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
             tmp.write(qr_photo)
             tmp_path = tmp.name
@@ -187,6 +210,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if card.get('valid_to'):
             caption += f"\nДействует до: {card['valid_to']}"
 
+        # Отправляем файл (метод send_file сам загружает его на сервер MAX)
         await bot.send_file(
             file_path=tmp_path,
             media_type="image",
@@ -194,7 +218,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
             text=caption
         )
 
-        os.unlink(tmp_path)
+        os.unlink(tmp_path)  # удаляем временный файл
 
     card_count = len(cards)
     if card_count == 1:
@@ -221,6 +245,8 @@ async def process_virtual_card(event: MessageCallback) -> None:
 async def process_support(event: MessageCallback) -> None:
     """
     Показывает вложенное меню отдела заботы с учётом наличия тикетов у пользователя.
+
+    Если у пользователя есть открытые тикеты, добавляется кнопка «📋 Мои обращения».
     """
     bot = event.bot
     await event.answer("")
@@ -240,7 +266,7 @@ async def process_support(event: MessageCallback) -> None:
 @router.message_callback(Command('vacancies'))
 async def process_vacancies(event: MessageCallback) -> None:
     """
-    Показывает информацию о вакансиях и ссылку.
+    Показывает информацию о вакансиях и ссылку на сайт с вакансиями.
     """
     bot = event.bot
     await event.answer("")
@@ -269,7 +295,7 @@ async def process_vacancies(event: MessageCallback) -> None:
 @router.message_callback(Command('support_feedback'))
 async def process_feedback(event: MessageCallback) -> None:
     """
-    Отправляет ссылку на внешний сервис отзывов.
+    Отправляет ссылку на внешний сервис отзывов (заглушка).
     """
     bot = event.bot
     await event.answer("")
@@ -313,26 +339,32 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     """
     Обработчик текста вопроса от пользователя.
     Создаёт тикет, уведомляет модераторов и очищает состояние.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
     """
     bot = event.bot
 
-    if not event.message.body.text:                           # <-- исправлено
+    if not event.message.body.text:
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, введите вопрос текстовым сообщением."
         )
         return
 
+    # Получаем пользователя из БД (для full_name и т.д.)
     user = await db.get_user(event.sender.user_id)
     if not user:
         await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка: пользователь не найден")
         await context.clear()
         return
 
+    # Создаём тикет
     ticket = await ticket_service.create_ticket(
         user_id=event.sender.user_id,
-        message=event.message.body.text,                      # <-- исправлено
-        user_username=event.sender.name,
+        message=event.message.body.text,
+        user_username=event.sender.name,          # в MAX это поле может содержать username
         user_first_name=event.sender.first_name or user.first_name_input
     )
 
@@ -346,6 +378,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
         )
     )
 
+    # Уведомление модераторов
     try:
         open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
         notification_text = (
@@ -399,6 +432,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
     """
     Возврат в главное меню.
     Удаляет текущее сообщение и отправляет новое с главным меню.
+    При необходимости очищает состояние FSM.
     """
     if context:
         await context.clear()
@@ -425,6 +459,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
 async def process_back_to_support(event: MessageCallback, context: MemoryContext) -> None:
     """
     Возврат во вложенное меню отдела заботы.
+    При необходимости очищает состояние FSM.
     """
     if context:
         await context.clear()

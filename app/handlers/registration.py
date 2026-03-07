@@ -16,6 +16,13 @@
 9. Возможность редактирования любого поля.
 10. Согласие на уведомления.
 11. Синхронизация с iiko.
+
+Все хендлеры используют корректные методы maxapi:
+- Текст сообщения: event.message.body.text
+- Редактирование: event.bot.update_message с обязательным message_id
+- Отправка клавиатур: attachments=[keyboard]
+- Работа с FSM: context (MemoryContext) передаётся вторым параметром
+- Ответ на callback: await event.answer("")
 """
 
 from datetime import datetime, timezone
@@ -49,6 +56,17 @@ router = Router()
 
 @router.message_callback(Registration.waiting_for_rules_consent)
 async def process_rules_accept(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обработчик нажатия кнопки «Согласен» после прочтения правил.
+
+    Ожидает payload "accept_rules". Сохраняет в БД факт принятия правил,
+    убирает клавиатуру (редактирует сообщение) и переводит пользователя
+    в состояние ожидания контакта.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
     if event.callback.payload != "accept_rules":
         return
 
@@ -63,9 +81,11 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
 
     await event.answer("Спасибо! Правила приняты.")
 
-    await event.message.edit_text(
-        text=event.message.body.text,          # <-- исправлено
-        attachments=[]
+    # Убираем клавиатуру – редактируем сообщение, оставляя текст без вложений
+    await event.bot.update_message(
+        message_id=event.message.id,
+        text=event.message.body.text,
+        attachments=[]  # пустой список удаляет клавиатуру
     )
 
     await event.message.answer(
@@ -80,8 +100,13 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
 async def process_contact(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает получение контакта от пользователя.
-    Извлекает номер телефона из VCF-вложения, сохраняет в БД и переводит
-    пользователя в состояние ожидания имени.
+
+    Извлекает номер телефона из VCF-вложения (поле payload.vcf_info),
+    сохраняет его в БД и переводит пользователя в состояние ожидания имени.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
     """
     if not event.message.body.attachments:
         await event.message.answer(
@@ -89,6 +114,7 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
+    # Ищем вложение типа contact
     contact_att = next(
         (att for att in event.message.body.attachments if att.type == "contact"),
         None
@@ -99,6 +125,7 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
+    # Извлекаем номер телефона из vcf_info
     phone = None
     if hasattr(contact_att, 'payload') and hasattr(contact_att.payload, 'vcf_info'):
         phone = extract_phone_from_vcf(contact_att.payload.vcf_info)
@@ -110,6 +137,7 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         )
         return
 
+    # Приводим номер к формату с '+'
     if not phone.startswith('+'):
         phone = '+' + phone
 
@@ -126,14 +154,24 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
 
 @router.message_created(Registration.waiting_for_first_name)
 async def process_first_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает ввод имени.
+
+    Проверяет, что сообщение текстовое, валидирует имя,
+    сохраняет его в БД и переводит в состояние ожидания фамилии.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
+    if not event.message.body.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите имя текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    first_name_text = event.message.body.text.strip()    # <-- исправлено
+    first_name_text = event.message.body.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит имя: '{first_name_text}'")
 
     is_valid, error_message = await validate_first_name(first_name_text)
@@ -152,14 +190,24 @@ async def process_first_name(event: MessageCreated, context: MemoryContext) -> N
 
 @router.message_created(Registration.waiting_for_last_name)
 async def process_last_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает ввод фамилии.
+
+    Аналогично process_first_name, после сохранения переводит
+    в состояние выбора пола с показом клавиатуры.
+
+    Args:
+        event (MessageCreated): событие создания сообщения.
+        context (MemoryContext): контекст FSM для управления состоянием.
+    """
+    if not event.message.body.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите фамилию текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    last_name_text = event.message.body.text.strip()    # <-- исправлено
+    last_name_text = event.message.body.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит фамилию: '{last_name_text}'")
 
     is_valid, error_message = await validate_last_name(last_name_text)
@@ -179,6 +227,16 @@ async def process_last_name(event: MessageCreated, context: MemoryContext) -> No
 
 @router.message_callback(Registration.waiting_for_gender)
 async def process_gender(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обрабатывает выбор пола (кнопки «Мужской» / «Женский»).
+
+    Сохраняет выбранное значение, убирает клавиатуру и переводит
+    в состояние ввода даты рождения.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
     if event.callback.payload not in ["gender_male", "gender_female"]:
         return
 
@@ -190,8 +248,10 @@ async def process_gender(event: MessageCallback, context: MemoryContext) -> None
     await db.update_user(user_id, gender=gender_value)
 
     await event.answer("")
-    await event.message.edit_text(
-        text=event.message.body.text,          # <-- исправлено
+    # Убираем клавиатуру – редактируем сообщение, оставляя текст
+    await event.bot.update_message(
+        message_id=event.message.id,
+        text=event.message.body.text,
         attachments=[]
     )
 
@@ -203,14 +263,24 @@ async def process_gender(event: MessageCallback, context: MemoryContext) -> None
 
 @router.message_created(Registration.waiting_for_birth_date)
 async def process_birth_date(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает ввод даты рождения.
+
+    Проверяет формат, корректность даты, возраст (от 18 до 100 лет),
+    сохраняет дату и переводит в состояние ввода email.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
+    if not event.message.body.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите дату текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    text = event.message.body.text.strip()                # <-- исправлено
+    text = event.message.body.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит дату рождения: '{text}'")
 
     is_valid, error_message = await validate_birth_date(text)
@@ -231,14 +301,24 @@ async def process_birth_date(event: MessageCreated, context: MemoryContext) -> N
 
 @router.message_created(Registration.waiting_for_email)
 async def process_email(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает ввод email.
+
+    Проверяет корректность формата, сохраняет email и переходит
+    к показу анкеты для подтверждения (через show_profile_review).
+
+    Args:
+        event (MessageCreated): событие создания сообщения.
+        context (MemoryContext): контекст FSM для управления состоянием.
+    """
+    if not event.message.body.text:
         await event.message.answer(
             text="✍️ Пожалуйста, введите почту текстовым сообщением."
         )
         return
 
     user_id = event.from_user.user_id
-    email = event.message.body.text.strip()               # <-- исправлено
+    email = event.message.body.text.strip()
     logger.info(f"👤 Пользователь user_id={user_id} вводит email: '{email}'")
 
     is_valid, error_message = await validate_email(email)
@@ -253,10 +333,22 @@ async def process_email(event: MessageCreated, context: MemoryContext) -> None:
 
 @router.message_callback(Registration.waiting_for_review)
 async def process_review(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обработчик нажатия кнопок на этапе подтверждения анкеты.
+
+    - Если "review_correct": убирает клавиатуру, переходит к согласию на уведомления.
+    - Если "review_edit": показывает меню выбора поля для редактирования.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
     if event.callback.payload == "review_correct":
         await event.answer("")
-        await event.message.edit_text(
-            text=event.message.body.text,          # <-- исправлено
+        # Убираем клавиатуру
+        await event.bot.update_message(
+            message_id=event.message.id,
+            text=event.message.body.text,
             attachments=[]
         )
         await event.message.answer(
@@ -269,7 +361,8 @@ async def process_review(event: MessageCallback, context: MemoryContext) -> None
     elif event.callback.payload == "review_edit":
         await event.answer("")
         text = "🔧 Выберите, что хотите исправить:"
-        await event.message.edit_text(
+        await event.bot.update_message(
+            message_id=event.message.id,
             text=text,
             attachments=[get_edit_choice_keyboard()]
         )
@@ -278,6 +371,17 @@ async def process_review(event: MessageCallback, context: MemoryContext) -> None
 
 @router.message_callback(Registration.waiting_for_edit_choice)
 async def process_edit_choice(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обработчик выбора поля для редактирования из меню.
+
+    В зависимости от payload устанавливает соответствующее состояние
+    (waiting_for_edit_*) и отправляет запрос на ввод нового значения.
+    Для поля «пол» сразу показывает клавиатуру выбора.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
     payload = event.callback.payload
     await event.answer("")
 
@@ -296,7 +400,8 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
     if payload in mapping:
         new_state, text, keyboard = mapping[payload]
-        await event.message.edit_text(
+        await event.bot.update_message(
+            message_id=event.message.id,
             text=text,
             attachments=[keyboard] if keyboard else []
         )
@@ -307,12 +412,21 @@ async def process_edit_choice(event: MessageCallback, context: MemoryContext) ->
 
 @router.message_created(Registration.waiting_for_edit_first_name)
 async def process_edit_first_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает редактирование имени.
+
+    Проверяет новое имя, сохраняет его и возвращается к анкете.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
+    if not event.message.body.text:
         await event.message.answer(text="✍️ Пожалуйста, введите имя текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.body.text.strip()               # <-- исправлено
+    value = event.message.body.text.strip()
     is_valid, error = await validate_first_name(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -325,12 +439,21 @@ async def process_edit_first_name(event: MessageCreated, context: MemoryContext)
 
 @router.message_created(Registration.waiting_for_edit_last_name)
 async def process_edit_last_name(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает редактирование фамилии.
+
+    Проверяет новую фамилию, сохраняет её и возвращается к анкете.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
+    if not event.message.body.text:
         await event.message.answer(text="✍️ Пожалуйста, введите фамилию текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.body.text.strip()               # <-- исправлено
+    value = event.message.body.text.strip()
     is_valid, error = await validate_last_name(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -343,6 +466,15 @@ async def process_edit_last_name(event: MessageCreated, context: MemoryContext) 
 
 @router.message_callback(Registration.waiting_for_edit_gender)
 async def process_edit_gender(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обрабатывает редактирование пола (выбор из кнопок).
+
+    Сохраняет новое значение и возвращается к анкете.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
     if event.callback.payload not in ["gender_male", "gender_female"]:
         return
 
@@ -355,12 +487,21 @@ async def process_edit_gender(event: MessageCallback, context: MemoryContext) ->
 
 @router.message_created(Registration.waiting_for_edit_birth_date)
 async def process_edit_birth_date(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает редактирование даты рождения.
+
+    Проверяет новую дату, сохраняет её и возвращается к анкете.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для управления состоянием
+    """
+    if not event.message.body.text:
         await event.message.answer(text="✍️ Пожалуйста, введите дату текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.body.text.strip()               # <-- исправлено
+    value = event.message.body.text.strip()
     is_valid, error = await validate_birth_date(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -374,12 +515,21 @@ async def process_edit_birth_date(event: MessageCreated, context: MemoryContext)
 
 @router.message_created(Registration.waiting_for_edit_email)
 async def process_edit_email(event: MessageCreated, context: MemoryContext) -> None:
-    if not event.message.body.text:                      # <-- исправлено
+    """
+    Обрабатывает редактирование email.
+
+    Проверяет новый email, сохраняет его и возвращается к анкете.
+
+    Args:
+        event (MessageCreated): событие создания сообщения.
+        context (MemoryContext): контекст FSM для управления состоянием.
+    """
+    if not event.message.body.text:
         await event.message.answer(text="✍️ Пожалуйста, введите почту текстовым сообщением.")
         return
 
     user_id = event.from_user.user_id
-    value = event.message.body.text.strip()               # <-- исправлено
+    value = event.message.body.text.strip()
     is_valid, error = await validate_email(value)
     if not is_valid:
         await event.message.answer(text=error)
@@ -391,6 +541,16 @@ async def process_edit_email(event: MessageCreated, context: MemoryContext) -> N
 
 @router.message_callback(Registration.waiting_for_notifications_consent)
 async def process_notifications_consent(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обрабатывает выбор пользователя по согласию на уведомления.
+
+    Кнопки: "notify_yes" или "notify_no". Сохраняет выбор,
+    убирает клавиатуру и запускает синхронизацию с iiko.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
+        context (MemoryContext): контекст FSM для управления состоянием.
+    """
     if event.callback.payload not in ["notify_yes", "notify_no"]:
         return
 
@@ -407,8 +567,9 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     )
 
     await event.answer("")
-    await event.message.edit_text(
-        text=event.message.body.text,          # <-- исправлено
+    await event.bot.update_message(
+        message_id=event.message.id,
+        text=event.message.body.text,
         attachments=[]
     )
 
@@ -424,6 +585,16 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
 
 @router.message_callback(Registration.waiting_for_iiko_registration)
 async def retry_iiko_registration(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Обработчик повторной попытки синхронизации с iiko.
+
+    Вызывается при нажатии кнопки «🔄 Повторить попытку» (payload "retry_iiko_registration").
+    Загружает пользователя и снова запускает sync_user_with_iiko.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
+        context (MemoryContext): контекст FSM для управления состоянием.
+    """
     if event.callback.payload != "retry_iiko_registration":
         return
 

@@ -7,6 +7,14 @@
 - ответа на тикет пользователем
 - обработки текста ответа
 - уведомления модераторов о новом сообщении.
+
+Все хендлеры используют корректные методы maxapi:
+- Текст сообщения: event.message.body.text
+- Редактирование: event.bot.update_message с обязательным message_id
+- Отправка клавиатур: attachments=[keyboard]
+- Работа с FSM: context (MemoryContext) передаётся вторым параметром
+- Ответ на callback: await event.answer("")
+- Отправка простых сообщений: bot.send_message
 """
 
 from loguru import logger
@@ -32,10 +40,18 @@ router = Router()
 async def user_tickets_list(event: MessageCallback) -> None:
     """
     Показывает первую страницу списка тикетов текущего пользователя.
+
+    Запрашивает из сервиса первую страницу тикетов (по 5 на странице),
+    формирует клавиатуру со списком и кнопками пагинации.
+    Если тикетов нет, выводит информационное сообщение.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
     """
     bot = event.bot
     user_id = event.user.user_id
 
+    # Получаем первую страницу тикетов пользователя (по 5 на странице)
     tickets, total_count = await ticket_service.get_tickets_page(
         page=1,
         per_page=5,
@@ -70,9 +86,15 @@ async def user_tickets_list(event: MessageCallback) -> None:
 async def user_tickets_page(event: MessageCallback) -> None:
     """
     Обработчик переключения страниц списка тикетов пользователя.
-    Ожидает callback_data вида "user_tickets_page_2".
+
+    Ожидает callback_data вида "user_tickets_page_2", где число — номер страницы.
+    Извлекает номер, запрашивает соответствующую страницу и обновляет сообщение.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
     """
     bot = event.bot
+    # Извлекаем номер страницы из payload
     page_str = event.callback.payload.replace('user_tickets_page_', '')
     try:
         page = int(page_str)
@@ -112,7 +134,13 @@ async def user_tickets_page(event: MessageCallback) -> None:
 async def user_ticket_details(event: MessageCallback) -> None:
     """
     Показывает детали тикета для пользователя.
-    Ожидает callback_data вида "user_ticket_123".
+
+    Ожидает callback_data вида "user_ticket_123". Извлекает ID тикета,
+    проверяет принадлежность текущему пользователю, получает историю переписки
+    и отображает отформатированную карточку тикета.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
     """
     bot = event.bot
     ticket_id_str = event.callback.payload.replace('user_ticket_', '')
@@ -143,7 +171,13 @@ async def user_ticket_details(event: MessageCallback) -> None:
 async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
     """
     Начало ответа на тикет – устанавливает состояние ожидания ответа.
-    Ожидает callback_data вида "user_reply_123".
+
+    Ожидает callback_data вида "user_reply_123". Проверяет, что тикет не закрыт,
+    сохраняет его ID в контексте и переводит состояние в waiting_for_reply.
+
+    Args:
+        event (MessageCallback): событие нажатия на callback-кнопку.
+        context (MemoryContext): контекст FSM для сохранения данных и состояния.
     """
     bot = event.bot
     ticket_id_str = event.callback.payload.replace('user_reply_', '')
@@ -182,11 +216,17 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
 async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обрабатывает ответ пользователя на тикет.
-    Сохраняет сообщение, уведомляет модераторов, обновляет карточку тикета.
+
+    Сохраняет сообщение в историю тикета, уведомляет модераторов,
+    обновляет статус тикета и показывает пользователю обновлённую карточку.
+
+    Args:
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для получения данных и очистки
     """
     bot = event.bot
 
-    if not event.message.body.text:                           # <-- исправлено
+    if not event.message.body.text:
         await bot.send_message(
             chat_id=event.chat.id,
             text="✍️ Пожалуйста, отправьте текстовое сообщение."
@@ -210,7 +250,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         ticket_id=ticket_id,
         sender_type="user",
         sender_id=event.sender.user_id,
-        message=event.message.body.text                       # <-- исправлено
+        message=event.message.body.text
     )
 
     # Если тикет был открыт, переводим его в статус "в работе"
@@ -218,7 +258,7 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         await ticket_service.update_ticket_status(ticket_id, 'in_progress')
 
     # Уведомляем модераторов о новом сообщении
-    await _notify_moderators_new_message(bot, ticket, event.message.body.text)  # <-- исправлено
+    await _notify_moderators_new_message(bot, ticket, event.message.body.text)
 
     # Получаем обновлённую историю и показываем карточку
     messages = await ticket_service.get_ticket_messages(ticket_id)
@@ -236,6 +276,11 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
 async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str) -> None:
     """
     Уведомляет всех модераторов о новом сообщении от пользователя в тикете.
+
+    Args:
+        bot: экземпляр бота для отправки сообщений
+        ticket (Ticket): объект тикета
+        message_text (str): текст нового сообщения
     """
     try:
         moderators = await db.get_moderators()
@@ -246,7 +291,9 @@ async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str)
                     text=(
                         f"📬 <b>Новое сообщение от пользователя</b>\n\n"
                         f"🎫 Тикет #{ticket.id}\n"
-                        f"👤 Пользователь: {html.escape(ticket.user_username or ticket.user_first_name or str(ticket.user_id))}\n"
+                        f"👤 Пользователь: {html.escape(ticket.user_username 
+                                                       or ticket.user_first_name 
+                                                       or str(ticket.user_id))}\n"
                         f"💬 Сообщение: {html.escape(message_text[:100])}{'…' if len(message_text) > 100 else ''}"
                     )
                 )

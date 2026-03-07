@@ -1,26 +1,23 @@
 """
 Пакет промежуточных обработчиков (middleware)
-===============================================
-Здесь собираются все middleware, которые будут подключены к диспетчеру.
-Функция setup_middlewares добавляет их в глобальный список диспетчера.
+================================================
+Функция setup_middlewares подключает все необходимые middleware к диспетчеру.
+Порядок подключения важен: сначала логирование, потом сохранение пользователя.
 """
 
 from maxapi.dispatcher import Dispatcher
-
-# Импортируем сами классы middleware
 from .logging import LoggingMiddleware
 from .user import UserSaveMiddleware
 
 
 def setup_middlewares(dp: Dispatcher) -> None:
     """
-    🛠️ Подключает все необходимые middleware к диспетчеру.
+    Добавляет список middleware в диспетчер.
 
-    Аргументы:
+    Args:
         dp (Dispatcher): экземпляр диспетчера, в который добавляются middleware.
     """
-    # Список middleware, которые будут выполняться последовательно
     dp.middlewares = [
-        LoggingMiddleware(),   # логирование всех событий
-        UserSaveMiddleware(),  # автоматическое сохранение пользователя
+        LoggingMiddleware(),   # логирует все события
+        UserSaveMiddleware(),  # сохраняет пользователя в БД
     ]

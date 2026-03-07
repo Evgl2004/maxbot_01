@@ -1,10 +1,6 @@
 """
-Обработчик команды /start с проверкой регистрации и согласий
-===============================================================
-При запуске бота проверяет статус пользователя и направляет по нужному пути:
-- если не приняты правила → показываем правила и кнопку согласия
-- если правила приняты, но регистрация не завершена → запрашиваем контакт
-- если регистрация завершена → показываем главное меню
+Обработчик команды /start.
+Проверяет статус пользователя и направляет по нужному пути.
 """
 
 from loguru import logger
@@ -25,38 +21,24 @@ router = Router()
 @router.message_created(Command('start'))
 async def start_command(event: MessageCreated, context: MemoryContext) -> None:
     """
-    👋 Обработчик команды /start.
-
-    Последовательность действий:
-    1. Извлекаем пользователя из события.
-    2. Получаем данные пользователя из БД (декораторы middleware уже сохранили/обновили).
-    3. Если пользователь устаревший (is_legacy) – запускаем процесс обновления.
-    4. Если не приняты правила – показываем правила и устанавливаем состояние.
-    5. Если правила приняты, но регистрация не завершена – запрашиваем контакт.
-    6. Иначе показываем главное меню.
-
-    Аргументы:
-        event (MessageCreated): событие создания сообщения
-        context (MemoryContext): контекст FSM
+    Обработчик команды /start.
     """
-    # Получаем пользователя из события
     user = event.from_user
     user_id = user.user_id
     logger.info(f"Пользователь user_id={user_id} запустил бот")
 
-    # Получаем полные данные пользователя из БД
     db_user = await db.get_user(user_id)
     if not db_user:
         logger.error(f"Пользователь user_id={user_id} не найден в БД")
         return
 
-    # --- Проверка, является ли пользователь устаревшим ---
+    # Устаревший пользователь
     if db_user.is_registered and db_user.is_legacy:
-        logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления данных")
+        logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления")
         await start_legacy_upgrade(event, db_user)
         return
 
-    # --- Проверка согласия с правилами ---
+    # Правила не приняты
     if not db_user.rules_accepted:
         await event.message.answer(
             text=(
@@ -71,7 +53,7 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
         await context.set_state(Registration.waiting_for_rules_consent)
         return
 
-    # --- Проверка завершённости регистрации ---
+    # Регистрация не завершена
     if not db_user.is_registered:
         await event.message.answer(
             text=(
@@ -83,7 +65,7 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
         await context.set_state(Registration.waiting_for_contact)
         return
 
-    # --- Если регистрация завершена — показываем главное меню ---
+    # Всё готово – главное меню
     await show_main_menu(
         chat_id=event.message.chat.id,
         bot=event.bot,

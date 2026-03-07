@@ -1,5 +1,14 @@
 """
 Сервис синхронизации пользователя с iiko.
+============================================
+Содержит функцию sync_user_with_iiko, которая:
+- проверяет наличие номера телефона у пользователя
+- получает информацию о клиенте из iiko (регистрирует, если не найден)
+- выпускает карту при необходимости
+- сохраняет флаг is_registered=True
+- показывает главное меню
+
+Используется в процессах регистрации и обновления legacy-пользователей.
 """
 
 from typing import Union
@@ -22,11 +31,21 @@ async def sync_user_with_iiko(
     user: User
 ) -> None:
     """
-    Синхронизирует данные пользователя с iiko.
-    При успехе устанавливает is_registered=True и показывает главное меню.
-    При ошибке предлагает повторить.
+    Синхронизирует данные пользователя с iiko, при необходимости регистрирует клиента,
+    выпускает карту и показывает главное меню.
+
+    Функция обрабатывает два типа событий:
+    - Message (пришло из обычного сообщения)
+    - MessageCallback (пришло из callback, например, после нажатия кнопки повтора)
+
+    Для callback-события используется редактирование сообщения (bot.update_message),
+    для обычного сообщения – отправка нового (bot.send_message).
+
+    Args:
+        event (Union[Message, MessageCallback]): событие, инициировавшее синхронизацию
+        user (User): объект пользователя из базы данных (модель User)
     """
-    # Определяем тип события и получаем нужные объекты
+    # Определяем тип события и извлекаем общие данные
     if isinstance(event, MessageCallback):
         bot = event.bot
         chat_id = event.message.chat.id
@@ -38,26 +57,27 @@ async def sync_user_with_iiko(
         message_id = None
         is_callback = False
 
+    # Проверяем наличие номера телефона
     phone = str(user.phone_number) if user.phone_number else ""
     if not phone:
         text = "❌ Ошибка: номер телефона не найден."
         await bot.send_message(chat_id=chat_id, text=text)
         if is_callback:
-            await event.set_state(None)
+            await event.set_state(None)  # очищаем состояние
         else:
             await event.reset_state()
         return
 
     card_number = None
 
-    # 1. Получаем информацию о клиенте
+    # 1. Пытаемся получить информацию о клиенте из iiko
     try:
         client_info = await iiko_service.get_customer_info(phone)
     except Exception as e:
         logger.error(f"Ошибка при запросе iiko для пользователя {user.id}: {e}")
         client_info = None
 
-    # 2. Если клиент не найден – регистрируем
+    # 2. Если клиент не найден – регистрируем нового
     if client_info is None:
         customer_id, reg_msg = await iiko_service.register_customer(user)
         if not customer_id:
@@ -72,9 +92,10 @@ async def sync_user_with_iiko(
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return
+        # Клиент создан, карт пока нет
         client_info = {'customer_id': customer_id, 'cards': []}
     else:
-        # 3. Клиент существует – обновляем данные
+        # 3. Клиент существует – обновляем его данные (например, если изменилось имя)
         existing_customer_id = client_info['customer_id']
         customer_id, upd_msg = await iiko_service.register_customer(user, customer_id=existing_customer_id)
         if not customer_id:
@@ -91,10 +112,12 @@ async def sync_user_with_iiko(
             return
         client_info['customer_id'] = customer_id
 
-    # 4. Проверяем наличие карт
+    # 4. Проверяем наличие карт у клиента
     cards = client_info.get('cards', [])
     if not cards:
-        success, card_msg, card_number = await iiko_service.issue_card_for_customer(str(phone), client_info['customer_id'])
+        # Выпускаем новую карту
+        success, card_msg, card_number = await iiko_service.issue_card_for_customer(str(phone),
+                                                                                    client_info['customer_id'])
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {card_msg}"
             if is_callback:
@@ -107,6 +130,7 @@ async def sync_user_with_iiko(
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return
+        # После выпуска обновляем информацию о клиенте
         client_info = await iiko_service.get_customer_info(phone)
         if client_info:
             cards = client_info.get('cards', [])
@@ -116,7 +140,7 @@ async def sync_user_with_iiko(
     # 5. Успех – устанавливаем флаг регистрации
     await db.update_user(user.id, is_registered=True)
 
-    # Если есть новая карта – отправляем QR
+    # Если есть новая карта (и она одна), отправляем QR-код
     if len(cards) == 1 and cards[0]['number'] == card_number:
         qr_photo = await generate_qr_code(card_number)
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
@@ -140,5 +164,6 @@ async def sync_user_with_iiko(
         user_name=user.first_name_input or "Гость"
     )
 
+    # Если событие было callback, отвечаем на него (убираем "часики")
     if is_callback:
         await bot.answer_callback(event.callback_id, "")
