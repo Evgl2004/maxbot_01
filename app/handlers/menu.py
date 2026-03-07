@@ -348,7 +348,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
 
     if not event.message.body.text:
         await bot.send_message(
-            chat_id=event.chat.id,
+            chat_id=event.chat.chat_id,
             text="✍️ Пожалуйста, введите вопрос текстовым сообщением."
         )
         return
@@ -356,7 +356,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     # Получаем пользователя из БД (для full_name и т.д.)
     user = await db.get_user(event.from_user.user_id)
     if not user:
-        await bot.send_message(chat_id=event.chat.id, text="❌ Ошибка: пользователь не найден")
+        await bot.send_message(chat_id=event.chat.chat_id, text="❌ Ошибка: пользователь не найден")
         await context.clear()
         return
 
@@ -369,7 +369,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     )
 
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=(
             f"📨 Ваш вопрос принят!\n\n"
             f"🎫 Создан тикет #{ticket.id}\n"

@@ -80,7 +80,7 @@ async def admin_command(event: MessageCreated) -> None:
         f"Выберите действие:"
     )
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=text,
         attachments=[AdminKeyboards.main_admin_menu()]
     )
@@ -139,7 +139,7 @@ async def receive_broadcast_message(event: MessageCreated, context: MemoryContex
 
     users_count = await db.get_active_users_count()
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=f"✅ <b>Сообщение получено!</b>\n\n"
              f"👥 Количество получателей: <b>{users_count}</b>\n\n"
              f"Хотите добавить кнопку к сообщению?",
@@ -201,7 +201,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
     bot = event.bot
     if not event.message.body.text:
         await bot.send_message(
-            chat_id=event.chat.id,
+            chat_id=event.chat.chat_id,
             text="✍️ Пожалуйста, отправьте текстовое сообщение."
         )
         return
@@ -211,7 +211,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
 
     if not match:
         await bot.send_message(
-            chat_id=event.chat.id,
+            chat_id=event.chat.chat_id,
             text="❌ <b>Неверный формат кнопки!</b>\n\n"
                  "Используйте формат:\n"
                  "<code>Текст кнопки | https://example.com</code>\n\n"
@@ -232,7 +232,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
     preview_keyboard = AdminKeyboards.create_custom_button(button_text, button_url)
 
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=f"✅ <b>Кнопка создана!</b>\n\n"
              f"📝 Текст: <b>{button_text}</b>\n"
              f"🔗 Ссылка: <code>{button_url}</code>\n\n"
@@ -242,7 +242,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
 
     users_count = await db.get_active_users_count()
     await bot.send_message(
-        chat_id=event.chat.id,
+        chat_id=event.chat.chat_id,
         text=f"📤 <b>Подтверждение рассылки</b>\n\n"
              f"👥 Получателей: <b>{users_count}</b>\n"
              f"🔗 С кнопкой: <b>Да</b>\n\n"

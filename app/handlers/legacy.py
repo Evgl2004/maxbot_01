@@ -115,12 +115,12 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback],
 
     if field == 'first_name':
         text = "✍️ Введите ваше имя:"
-        await bot.send_message(chat_id=event.chat.id, text=text)
+        await bot.send_message(chat_id=event.chat.chat_id, text=text)
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     elif field == 'last_name':
         text = "✍️ Введите вашу фамилию:"
-        await bot.send_message(chat_id=event.chat.id, text=text)
+        await bot.send_message(chat_id=event.chat.chat_id, text=text)
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     elif field == 'gender':
@@ -142,12 +142,12 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback],
 
     elif field == 'birth_date':
         text = "📅 Введите вашу дату рождения в формате ДД.ММ.ГГГГ (например, 25.12.1990):"
-        await bot.send_message(chat_id=event.chat.id, text=text)
+        await bot.send_message(chat_id=event.chat.chat_id, text=text)
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     elif field == 'email':
         text = "📧 Введите ваш email:"
-        await bot.send_message(chat_id=event.chat.id, text=text)
+        await bot.send_message(chat_id=event.chat.chat_id, text=text)
         await context.set_state(LegacyUpgrade.waiting_for_field)
 
     else:
@@ -253,7 +253,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
     if field == 'first_name':
         is_valid, error_message = await validate_first_name(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         cleaned = await clean_name(value)
         await db.update_user(user_id, first_name_input=cleaned)
@@ -263,7 +263,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
     elif field == 'last_name':
         is_valid, error_message = await validate_last_name(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         cleaned = await clean_name(value)
         await db.update_user(user_id, last_name_input=cleaned)
@@ -273,7 +273,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
     elif field == 'birth_date':
         is_valid, error_message = await validate_birth_date(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         birth = datetime.strptime(value, "%d.%m.%Y").date()
         await db.update_user(user_id, birth_date=birth)
@@ -283,7 +283,7 @@ async def process_field_input(event: MessageCreated, context: MemoryContext) -> 
     elif field == 'email':
         is_valid, error_message = await validate_email(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         await db.update_user(user_id, email=value)
         missing_fields.pop(0)
@@ -445,7 +445,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     if field == 'edit_first_name':
         is_valid, error_message = await validate_first_name(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         cleaned = await clean_name(value)
         await db.update_user(user_id, first_name_input=cleaned)
@@ -453,7 +453,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     elif field == 'edit_last_name':
         is_valid, error_message = await validate_last_name(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         cleaned = await clean_name(value)
         await db.update_user(user_id, last_name_input=cleaned)
@@ -461,7 +461,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     elif field == 'edit_birth_date':
         is_valid, error_message = await validate_birth_date(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         birth = datetime.strptime(value, "%d.%m.%Y").date()
         await db.update_user(user_id, birth_date=birth)
@@ -469,7 +469,7 @@ async def process_edit_field(event: MessageCreated, context: MemoryContext) -> N
     elif field == 'edit_email':
         is_valid, error_message = await validate_email(value)
         if not is_valid:
-            await bot.send_message(chat_id=event.chat.id, text=error_message)
+            await bot.send_message(chat_id=event.chat.chat_id, text=error_message)
             return
         await db.update_user(user_id, email=value)
 

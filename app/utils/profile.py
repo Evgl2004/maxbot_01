@@ -53,7 +53,7 @@ async def show_profile_review(
 
     if isinstance(event, MessageCreated):
         await bot.send_message(
-            chat_id=event.chat.id,
+            chat_id=event.chat.chat_id,
             text=text,
             attachments=[get_review_keyboard()]
         )
