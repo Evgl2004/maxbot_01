@@ -12,7 +12,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.update_message с обязательным message_id
+- Редактирование: event.bot.edit_message с обязательным message_id
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 - Ответ на callback: await event.answer("")
@@ -24,6 +24,7 @@ import re
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.config import settings
 from app.database import db
@@ -82,7 +83,8 @@ async def admin_command(event: MessageCreated) -> None:
     await bot.send_message(
         chat_id=event.chat.chat_id,
         text=text,
-        attachments=[AdminKeyboards.main_admin_menu()]
+        attachments=[AdminKeyboards.main_admin_menu()],
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -112,6 +114,7 @@ async def start_broadcast(event: MessageCallback, context: MemoryContext) -> Non
              "Отправьте сообщение любого типа (текст, фото, видео, документ и т.д.), "
              "которое хотите разослать всем пользователям бота.\n\n"
              "Для отмены введите /cancel",
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
 
@@ -143,7 +146,8 @@ async def receive_broadcast_message(event: MessageCreated, context: MemoryContex
         text=f"✅ <b>Сообщение получено!</b>\n\n"
              f"👥 Количество получателей: <b>{users_count}</b>\n\n"
              f"Хотите добавить кнопку к сообщению?",
-        attachments=[AdminKeyboards.broadcast_add_button()]
+        attachments=[AdminKeyboards.broadcast_add_button()],
+        parse_mode=ParseMode.HTML
     )
     # Остаёмся в том же состоянии для выбора (AdminStates.broadcast_message)
     await context.set_state(AdminStates.broadcast_message)
@@ -177,6 +181,7 @@ async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext
              "Пример:\n"
              "<code>Наш сайт | https://example.com</code>\n\n"
              "Для отмены введите /cancel",
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
 
@@ -237,7 +242,8 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
              f"📝 Текст: <b>{button_text}</b>\n"
              f"🔗 Ссылка: <code>{button_url}</code>\n\n"
              f"Превью кнопки:",
-        attachments=[preview_keyboard]
+        attachments=[preview_keyboard],
+        parse_mode=ParseMode.HTML
     )
 
     users_count = await db.get_active_users_count()
@@ -276,7 +282,8 @@ async def broadcast_without_button(event: MessageCallback) -> None:
              f"👥 Получателей: <b>{users_count}</b>\n"
              f"🔗 С кнопкой: <b>Нет</b>\n\n"
              f"Отправить рассылку?",
-        attachments=[AdminKeyboards.broadcast_confirm(users_count)]
+        attachments=[AdminKeyboards.broadcast_confirm(users_count)],
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
 
@@ -303,7 +310,8 @@ async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> N
     # ВРЕМЕННО: просто показываем сообщение о запуске
     await bot.edit_message(
         message_id=event.message.body.mid,
-        text="📤 <b>Рассылка запущена...</b> (заглушка, функционал в разработке)"
+        text="📤 <b>Рассылка запущена...</b> (заглушка, функционал в разработке)",
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
     await context.clear()
