@@ -11,7 +11,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.update_message
+- Редактирование: event.bot.edit_message
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 - Проверка прав модератора через is_moderator
@@ -22,6 +22,7 @@ from loguru import logger
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.database import db
 from app.services.tickets import ticket_service
@@ -93,7 +94,8 @@ async def mod_command(event: MessageCreated) -> None:
     await bot.send_message(
         chat_id=event.chat.chat_id,
         text=stats_text,
-        attachments=[ModerationKeyboard.main_menu()]
+        attachments=[ModerationKeyboard.main_menu()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -122,7 +124,8 @@ async def moderator_menu(event: MessageCreated) -> None:
     await bot.send_message(
         chat_id=event.chat.chat_id,
         text=stats_text,
-        attachments=[ModerationKeyboard.main_menu()]
+        attachments=[ModerationKeyboard.main_menu()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -151,7 +154,8 @@ async def mod_main_callback(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=stats_text,
-        attachments=[ModerationKeyboard.main_menu()]
+        attachments=[ModerationKeyboard.main_menu()],
+        parse_mode=ParseMode.MARKDOWN
     )
     await event.answer("")
 
@@ -355,7 +359,8 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=ticket_text,
-        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)]
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)],
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
 
@@ -400,7 +405,8 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)]
+        attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)],
+        parse_mode=ParseMode.MARKDOWN
     )
     await event.answer("")
 
@@ -413,8 +419,8 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     обновляет статус тикета и отображает обновлённую карточку.
 
     Args:
-        event (MessageCreated): событие создания сообщения.
-        context (MemoryContext): контекст FSM для получения данных и очистки.
+        event (MessageCreated): событие создания сообщения
+        context (MemoryContext): контекст FSM для получения данных и очистки
     """
     bot = event.bot
 
@@ -462,7 +468,8 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
                 f"📝 <b>Ответ от модератора:</b>\n"
                 f"{html.escape(event.message.body.text)}"
             ),
-            attachments=[UserTicketsKeyboard.notification_keyboard(ticket_id, ticket.status)]
+            attachments=[UserTicketsKeyboard.notification_keyboard(ticket_id, ticket.status)],
+            parse_mode=ParseMode.HTML
         )
     except Exception as e:
         logger.error(f"Ошибка при отправке ответа пользователю: {e}")
@@ -474,7 +481,8 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     await bot.send_message(
         chat_id=event.chat.chat_id,
         text=ticket_text,
-        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)],
+        parse_mode=ParseMode.HTML
     )
 
     await context.clear()
@@ -522,5 +530,6 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=ticket_text,
-        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)]
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)],
+        parse_mode = ParseMode.HTML
     )

@@ -4,6 +4,7 @@ from typing import Union
 
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.database import db
 from app.keyboards.registration import get_review_keyboard
@@ -55,13 +56,15 @@ async def show_profile_review(
         await bot.send_message(
             chat_id=event.chat.chat_id,
             text=text,
-            attachments=[get_review_keyboard()]
+            attachments=[get_review_keyboard()],
+            parse_mode=ParseMode.MARKDOWN
         )
     else:
         await bot.edit_message(
             message_id=event.message.id,
             text=text,
-            attachments=[get_review_keyboard()]
+            attachments=[get_review_keyboard()],
+            parse_mode=ParseMode.MARKDOWN
         )
         await bot.answer_callback(event.callback_id, "")
 

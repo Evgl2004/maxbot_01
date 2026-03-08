@@ -12,6 +12,7 @@ from datetime import datetime
 
 from maxapi import Router
 from maxapi.types import Command, MessageCreated
+from maxapi.enums.parse_mode import ParseMode
 
 from app.config import settings
 
@@ -45,7 +46,11 @@ async def help_command(event: MessageCreated) -> None:
     )
 
     # Отправляем ответ (текст без дополнительного форматирования, но HTML-теги будут работать)
-    await event.message.answer(help_text)
+    await event.bot.send_message(
+        chat_id=event.chat.chat_id,
+        text=help_text,
+        parse_mode=ParseMode.HTML
+    )
 
 
 @router.message_created(Command('status'))
@@ -72,4 +77,8 @@ async def status_command(event: MessageCreated) -> None:
         f"⏰ Время проверки: {current_time}"
     )
 
-    await event.message.answer(status_text)
+    await event.bot.send_message(
+        chat_id=event.chat.chat_id,
+        text=status_text,
+        parse_mode=ParseMode.HTML
+    )

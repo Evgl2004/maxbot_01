@@ -19,7 +19,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.update_message с обязательным message_id
+- Редактирование: event.bot.edit_message с обязательным message_id
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 - Ответ на callback: await event.answer("")

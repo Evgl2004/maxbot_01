@@ -10,7 +10,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.update_message с обязательным message_id
+- Редактирование: event.bot.edit_message с обязательным message_id
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 - Ответ на callback: await event.answer("")
@@ -22,6 +22,7 @@ from loguru import logger
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.database import db
 from app.database.models import Ticket
@@ -206,7 +207,8 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[UserTicketsKeyboard.cancel_reply(ticket_id)]
+        attachments=[UserTicketsKeyboard.cancel_reply(ticket_id)],
+        parse_mode=ParseMode.MARKDOWN
     )
     await event.answer("")
 
@@ -267,7 +269,8 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
     await bot.send_message(
         chat_id=event.chat.chat_id,
         text=ticket_text,
-        attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)]
+        attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)],
+        parse_mode=ParseMode.HTML
     )
     await context.clear()
 
@@ -294,7 +297,8 @@ async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str)
                         f"🎫 Тикет #{ticket.id}\n"
                         f"👤 Пользователь: {html.escape(user_display)}\n"
                         f"💬 Сообщение: {html.escape(message_text[:100])}{'…' if len(message_text) > 100 else ''}"
-                    )
+                    ),
+                    parse_mode=ParseMode.HTML
                 )
             except Exception as e:
                 logger.error(f"Ошибка уведомления модератора {moderator.id}: {e}")

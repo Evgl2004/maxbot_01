@@ -38,7 +38,7 @@ async def sync_user_with_iiko(
     - Message (пришло из обычного сообщения)
     - MessageCallback (пришло из callback, например, после нажатия кнопки повтора)
 
-    Для callback-события используется редактирование сообщения (bot.update_message),
+    Для callback-события используется редактирование сообщения (bot.edit_message),
     для обычного сообщения – отправка нового (bot.send_message).
 
     Args:

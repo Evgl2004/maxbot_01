@@ -10,7 +10,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.update_message
+- Редактирование: event.bot.edit_message
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 """
@@ -22,6 +22,7 @@ import os
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.database import db
 from app.services.tickets import ticket_service
@@ -114,7 +115,8 @@ async def process_balance(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_back_to_main_keyboard()]
+        attachments=[get_back_to_main_keyboard()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -259,7 +261,8 @@ async def process_support(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
+        attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -287,7 +290,8 @@ async def process_vacancies(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_back_to_main_keyboard()]
+        attachments=[get_back_to_main_keyboard()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -308,7 +312,8 @@ async def process_feedback(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_back_to_support_keyboard()]
+        attachments=[get_back_to_support_keyboard()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -330,7 +335,8 @@ async def process_question(event: MessageCallback, context: MemoryContext) -> No
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_back_to_support_keyboard()]
+        attachments=[get_back_to_support_keyboard()],
+        parse_mode=ParseMode.MARKDOWN
     )
 
 
@@ -396,6 +402,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
                 await bot.send_message(
                     chat_id=moderator.id,
                     text=notification_text,
+                    parse_mode=ParseMode.MARKDOWN
                 )
             except Exception as e:
                 logger.error(f"Ошибка при отправке уведомления модератору {moderator.id}: {e}")
@@ -475,5 +482,6 @@ async def process_back_to_support(event: MessageCallback, context: MemoryContext
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)]
+        attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)],
+        parse_mode=ParseMode.MARKDOWN
     )
