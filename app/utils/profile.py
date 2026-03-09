@@ -69,7 +69,7 @@ async def show_profile_review(
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN
         )
-        await bot.answer_callback(event.callback_id, "")
+        await event.answer("")
 
     if target_state:
         await context.set_state(target_state)
