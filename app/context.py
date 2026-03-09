@@ -9,6 +9,8 @@ from typing import Any, Optional, Union
 from maxapi.context import MemoryContext, State
 from app.services.redis_client import get_redis
 
+from loguru import logger
+
 # Глобальный реестр состояний: имя_состояния -> объект State
 _STATE_REGISTRY = {}
 
@@ -33,6 +35,8 @@ def build_state_registry():
             attr = getattr(group, attr_name)
             if isinstance(attr, State):
                 _STATE_REGISTRY[str(attr)] = attr
+                logger.debug(f"Зарегистрировано состояние: {str(attr)}")
+    logger.info(f"Реестр состояний содержит {len(_STATE_REGISTRY)} записей: {list(_STATE_REGISTRY.keys())}")
 
 
 class RedisContext(MemoryContext):
@@ -85,9 +89,13 @@ class RedisContext(MemoryContext):
         """
         redis = await self._get_redis()
         state_str = await redis.get(self._make_state_key())
+        logger.debug(f"Запрошено состояние для {self.chat_id}:{self.user_id}, из Redis получено: {state_str}")
         if state_str:
             # Получаем объект State из реестра
-            return _STATE_REGISTRY.get(state_str)
+            state_obj = _STATE_REGISTRY.get(state_str)
+            logger.debug(f"По строке '{state_str}' найден объект State: {state_obj}")
+            return state_obj
+        logger.debug(f"Состояние не найдено в Redis или не зарегистрировано")
         return None
 
     async def set_state(self, state: Optional[Union[State, str]] = None):
@@ -95,8 +103,11 @@ class RedisContext(MemoryContext):
         redis = await self._get_redis()
         if state is None:
             await redis.delete(self._make_state_key())
+            logger.debug(f"Удалено состояние для {self.chat_id}:{self.user_id}")
         else:
-            await redis.set(self._make_state_key(), str(state))
+            state_val = str(state)
+            await redis.set(self._make_state_key(), state_val)
+            logger.debug(f"Сохранено состояние для {self.chat_id}:{self.user_id} -> {state_val}")
 
     async def clear(self):
         """Очищает данные и состояние в Redis."""

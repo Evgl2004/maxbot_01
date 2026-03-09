@@ -279,10 +279,13 @@ def _patch_dispatcher(dispatcher: Dispatcher) -> None:
         key = (chat_id, user_id)
         # Поиск существующего контекста в словаре
         if key in contexts:
-            return cast(MemoryContext, contexts[key])
+            ctx = contexts[key]
+            logger.debug(f"Использован существующий контекст для {chat_id}:{user_id}")
+            return cast(MemoryContext, ctx)
         # Создаём новый RedisContext и добавляем в словарь
         new_ctx = RedisContext(chat_id, user_id)
         contexts[key] = new_ctx
+        logger.debug(f"Создан новый RedisContext для {chat_id}:{user_id}")
         return new_ctx
 
     # Monkey-patch приватного метода
