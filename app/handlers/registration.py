@@ -149,6 +149,8 @@ async def process_contact(event: MessageCreated, context: MemoryContext) -> None
         text="✅ Спасибо! Номер телефона сохранён.\n\n"
              "✍️ Теперь, пожалуйста, напишите ваше имя."
     )
+    logger.info(f"ТИП КОНТЕКСТА в process_contact: {type(context).__name__}")
+    logger.info("Вызываем set_state для waiting_for_first_name")
     await context.set_state(Registration.waiting_for_first_name)
 
 
@@ -185,6 +187,8 @@ async def process_first_name(event: MessageCreated, context: MemoryContext) -> N
     await event.message.answer(
         text="✅ Спасибо! Теперь напишите вашу фамилию."
     )
+    logger.info(f"ТИП КОНТЕКСТА в process_first_name: {type(context).__name__}")
+    logger.info("Вызываем set_state для waiting_for_last_name")
     await context.set_state(Registration.waiting_for_last_name)
 
 
