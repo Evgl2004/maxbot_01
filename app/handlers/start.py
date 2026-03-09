@@ -23,6 +23,7 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
     """
     Обработчик команды /start.
     """
+    logger.info(f"ТИП КОНТЕКСТА в start_command: {type(context).__name__}")
     user = event.from_user
     user_id = user.user_id
     logger.info(f"Пользователь user_id={user_id} запустил бот")
