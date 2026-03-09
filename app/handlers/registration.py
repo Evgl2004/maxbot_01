@@ -580,7 +580,9 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
         return
 
     await context.set_state(Registration.waiting_for_iiko_registration)
-    await sync_user_with_iiko(event, user)
+    success = await sync_user_with_iiko(event, user)
+    if success:
+        await context.clear()
 
 
 @router.message_callback(Registration.waiting_for_iiko_registration)
@@ -605,4 +607,6 @@ async def retry_iiko_registration(event: MessageCallback, context: MemoryContext
         await context.clear()
         return
 
-    await sync_user_with_iiko(event, user)
+    success = await sync_user_with_iiko(event, user)
+    if success:
+        await context.clear()

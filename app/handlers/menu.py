@@ -23,6 +23,7 @@ from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
+from maxapi.types import InputMedia
 
 from app.database import db
 from app.services.tickets import ticket_service
@@ -212,12 +213,11 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if card.get('valid_to'):
             caption += f"\nДействует до: {card['valid_to']}"
 
-        # Отправляем файл (метод send_file сам загружает его на сервер MAX)
-        await bot.send_file(
-            file_path=tmp_path,
-            media_type="image",
-            chat_id=event.message.chat.id,
-            text=caption
+        media = InputMedia(path=tmp_path)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text=caption,
+            attachments=[media]
         )
 
         os.unlink(tmp_path)  # удаляем временный файл
@@ -237,7 +237,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         "столовые 'Ассорти', мастерскую сыра «Страчателли»*"
     )
     await bot.send_message(
-        chat_id=event.message.chat.id,
+        chat_id=event.message.recipient.chat_id,
         text=final_text,
         attachments=[get_back_to_main_keyboard()]
     )
@@ -456,7 +456,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
     text = f"👋 {name}, вы в главном меню.\nВыберите раздел:"
     await bot.delete_message(event.message.body.mid)
     await bot.send_message(
-        chat_id=event.message.chat.id,
+        chat_id=event.message.recipient.chat_id,
         text=text,
         attachments=[get_main_menu_keyboard()]
     )

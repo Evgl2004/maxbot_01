@@ -22,6 +22,8 @@ from app.middlewares import setup_middlewares   # функция, которая
 from app.database import db                      # объект для работы с базой данных (PostgreSQL)
 from app.services import iiko_service            # сервис для интеграции с iiko (лояльность, карты)
 
+from app.services.redis_client import get_redis, close_redis
+
 
 async def setup_bot() -> tuple[Bot, Dispatcher]:
     """
@@ -112,7 +114,21 @@ async def on_startup(bot: Bot) -> None:
         sys.exit(1)
 
     # ------------------------------------------------------------
-    # 3. Получение информации о самом боте и вывод в логи
+    # 3. Загрузка маркера обновлений из Redis
+    # ------------------------------------------------------------
+    try:
+        redis_client = await get_redis()
+        marker = await redis_client.get('bot_marker')
+        if marker:
+            bot.marker_updates = int(marker)
+            logger.info(f"✅ Восстановлен маркер обновлений: {bot.marker_updates}")
+        else:
+            logger.info("ℹ️ Маркер обновлений не найден, начинаем с начала")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при загрузке маркера из Redis: {e}")
+
+    # ------------------------------------------------------------
+    # 4. Получение информации о самом боте и вывод в логи
     # ------------------------------------------------------------
     # Метод get_me() возвращает объект, содержащий поля:
     #   - username: имя бота (без @)
@@ -140,6 +156,18 @@ async def on_shutdown(bot: Bot) -> None:
     # ------------------------------------------------------------
     await iiko_service.close_iiko_client()
     logger.info("🛑 Клиент iiko закрыт")
+
+    # ------------------------------------------------------------
+    # Сохранение маркера обновлений в Redis
+    # ------------------------------------------------------------
+    if bot.marker_updates:
+        try:
+            redis_client = await get_redis()
+            await redis_client.set('bot_marker', bot.marker_updates)
+            logger.info(f"✅ Сохранён маркер обновлений: {bot.marker_updates}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при сохранении маркера в Redis: {e}")
+    await close_redis()
 
     # ------------------------------------------------------------
     # Закрываем сессию aiohttp, которую использует bot
@@ -194,6 +222,7 @@ async def main() -> None:
         logger.info("🔄 Запуск поллинга...")
         # start_polling – это бесконечный цикл, который будет работать,
         # пока его не прервать (например, по Ctrl+C).
+        await bot.delete_webhook()
         await dp.start_polling(bot)
     except KeyboardInterrupt:
         # Если пользователь нажал Ctrl+C в терминале

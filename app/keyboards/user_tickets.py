@@ -146,7 +146,7 @@ class UserTicketsKeyboard:
         """
         builder = InlineKeyboardBuilder()
         builder.row(
-            CallbackButton(text="❌ Отмена", payload=f"user_ticket_{ticket_id}")
+            CallbackButton(text="❌ Отмена", payload=f"user_cancel_reply_{ticket_id}")
         )
         return builder.as_markup()
 

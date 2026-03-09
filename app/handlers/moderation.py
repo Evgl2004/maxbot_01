@@ -365,6 +365,46 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     await event.answer("")
 
 
+@router.message_callback(Command('mod_cancel_reply_'))
+async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Отмена ответа на тикет: очищает состояние и показывает детали тикета.
+    """
+    if not await is_moderator(event.user.user_id):
+        await event.answer("❌ У вас нет прав модератора")
+        return
+
+    ticket_id_str = event.callback.payload.replace('mod_cancel_reply_', '')
+    try:
+        ticket_id = int(ticket_id_str)
+    except ValueError:
+        await event.answer("❌ Неверный формат")
+        return
+
+    # Очищаем контекст, чтобы выйти из состояния ожидания ответа
+    await context.clear()
+
+    # Показываем детали тикета (используем фильтр по умолчанию, так как контекст очищен)
+    bot = event.bot
+    ticket = await ticket_service.get_ticket(ticket_id)
+    if not ticket:
+        await event.answer("❌ Тикет не найден")
+        return
+
+    messages = await ticket_service.get_ticket_messages(ticket_id)
+    ticket_text = format_ticket_details(ticket, messages)
+
+    # Используем FILTER_ALL как значение по умолчанию для кнопки "Назад"
+    from app.handlers.moderation import FILTER_ALL  # или импортировать в начале файла
+    await bot.edit_message(
+        message_id=event.message.body.mid,
+        text=ticket_text,
+        attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, FILTER_ALL)],
+        parse_mode=ParseMode.HTML
+    )
+    await event.answer("")
+
+
 # ---------- Ответ на тикет ----------
 @router.message_callback(Command('mod_reply_'))
 async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
