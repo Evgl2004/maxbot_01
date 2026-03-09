@@ -18,6 +18,7 @@ import os
 from loguru import logger
 
 from maxapi.types import Message, MessageCallback
+from maxapi.types import InputMedia
 
 from app.database import db
 from app.database.models import User
@@ -29,7 +30,7 @@ from app.utils.qr import generate_qr_code
 async def sync_user_with_iiko(
     event: Union[Message, MessageCallback],
     user: User
-) -> None:
+) -> bool:
     """
     Синхронизирует данные пользователя с iiko, при необходимости регистрирует клиента,
     выпускает карту и показывает главное меню.
@@ -48,7 +49,7 @@ async def sync_user_with_iiko(
     # Определяем тип события и извлекаем общие данные
     if isinstance(event, MessageCallback):
         bot = event.bot
-        chat_id = event.message.chat.id
+        chat_id = event.message.recipient.chat_id
         message_id = event.message.id
         is_callback = True
     else:  # Message
@@ -62,11 +63,7 @@ async def sync_user_with_iiko(
     if not phone:
         text = "❌ Ошибка: номер телефона не найден."
         await bot.send_message(chat_id=chat_id, text=text)
-        if is_callback:
-            await event.set_state(None)  # очищаем состояние
-        else:
-            await event.reset_state()
-        return
+        return False
 
     card_number = None
 
@@ -91,7 +88,7 @@ async def sync_user_with_iiko(
                 await bot.answer_callback(event.callback_id, "")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
-            return
+            return False
         # Клиент создан, карт пока нет
         client_info = {'customer_id': customer_id, 'cards': []}
     else:
@@ -109,7 +106,7 @@ async def sync_user_with_iiko(
                 await bot.answer_callback(event.callback_id, "")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
-            return
+            return False
         client_info['customer_id'] = customer_id
 
     # 4. Проверяем наличие карт у клиента
@@ -129,7 +126,7 @@ async def sync_user_with_iiko(
                 await bot.answer_callback(event.callback_id, "")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
-            return
+            return False
         # После выпуска обновляем информацию о клиенте
         client_info = await iiko_service.get_customer_info(phone)
         if client_info:
@@ -146,11 +143,12 @@ async def sync_user_with_iiko(
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
             tmp.write(qr_photo)
             tmp_path = tmp.name
-        await bot.send_file(
-            file_path=tmp_path,
-            media_type="image",
+        # Используем InputMedia для отправки изображения (вместо bot.send_file)
+        media = InputMedia(path=tmp_path)
+        await bot.send_message(
             chat_id=chat_id,
-            text=f"✅ Ваша бонусная карта:\n{card_number}"
+            text=f"✅ Ваша бонусная карта:\n{card_number}",
+            attachments=[media]
         )
         os.unlink(tmp_path)
 
@@ -167,3 +165,5 @@ async def sync_user_with_iiko(
     # Если событие было callback, отвечаем на него (убираем "часики")
     if is_callback:
         await bot.answer_callback(event.callback_id, "")
+
+    return True

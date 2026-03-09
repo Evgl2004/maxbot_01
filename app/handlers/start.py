@@ -67,7 +67,7 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
 
     # Всё готово – главное меню
     await show_main_menu(
-        chat_id=event.message.chat.id,
+        chat_id=event.message.recipient.chat_id,
         bot=event.bot,
         user_name=db_user.first_name_input or "Гость"
     )

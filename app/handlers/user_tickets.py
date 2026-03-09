@@ -213,6 +213,40 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
     await event.answer("")
 
 
+@router.message_callback(Command('user_cancel_reply_'))
+async def user_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
+    """
+    Отмена ответа на тикет пользователем: очищает состояние и показывает детали тикета.
+    """
+    bot = event.bot
+    ticket_id_str = event.callback.payload.replace('user_cancel_reply_', '')
+    try:
+        ticket_id = int(ticket_id_str)
+    except ValueError:
+        await event.answer("❌ Ошибка")
+        return
+
+    ticket = await ticket_service.get_ticket(ticket_id)
+    if not ticket or ticket.user_id != event.user.user_id:
+        await event.answer("❌ Доступ запрещён")
+        return
+
+    # Очищаем контекст
+    await context.clear()
+
+    # Показываем детали тикета
+    messages = await ticket_service.get_ticket_messages(ticket_id)
+    ticket_text = format_ticket_details(ticket, messages)
+
+    await bot.edit_message(
+        message_id=event.message.body.mid,
+        text=ticket_text,
+        attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)],
+        parse_mode=ParseMode.HTML
+    )
+    await event.answer("")
+
+
 # ---------- Обработка ввода ответа пользователя ----------
 @router.message_created(UserTicketStates.waiting_for_reply)
 async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None:

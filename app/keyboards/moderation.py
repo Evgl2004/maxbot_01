@@ -166,7 +166,7 @@ class ModerationKeyboard:
         """
         builder = InlineKeyboardBuilder()
         builder.row(
-            CallbackButton(text="❌ Отмена", payload=f"mod_ticket_{ticket_id}")
+            CallbackButton(text="❌ Отмена", payload=f"mod_cancel_reply_{ticket_id}")
         )
         return builder.as_markup()
 
