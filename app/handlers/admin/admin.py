@@ -101,7 +101,7 @@ async def start_broadcast(event: MessageCallback, context: MemoryContext) -> Non
         event (MessageCallback): событие нажатия на callback-кнопку
         context (MemoryContext): контекст FSM для установки состояния
     """
-    if not is_admin(event.user.user_id):
+    if not is_admin(event.from_user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -166,7 +166,7 @@ async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext
         event (MessageCallback): событие нажатия на callback-кнопку
         context (MemoryContext): контекст FSM для установки состояния
     """
-    if not is_admin(event.user.user_id):
+    if not is_admin(event.from_user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -269,7 +269,7 @@ async def broadcast_without_button(event: MessageCallback) -> None:
     Args:
         event (MessageCallback): событие нажатия на callback-кнопку
     """
-    if not is_admin(event.user.user_id):
+    if not is_admin(event.from_user.user_id):
         await event.answer("❌ Нет прав")
         return
 
@@ -301,7 +301,7 @@ async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> N
         event (MessageCallback): событие нажатия на callback-кнопку
         context (MemoryContext): контекст FSM для очистки
     """
-    if not is_admin(event.user.user_id):
+    if not is_admin(event.from_user.user_id):
         await event.answer("❌ Нет прав")
         return
 

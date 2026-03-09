@@ -135,7 +135,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
 
     Отображает статистику и меню.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -167,7 +167,7 @@ async def mod_tickets_list(event: MessageCallback) -> None:
 
     Без фильтрации, только пагинация.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -207,7 +207,7 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
         event (MessageCallback): событие нажатия на callback-кнопку
         context (MemoryContext): контекст FSM для сохранения данных
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -266,7 +266,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
         event (MessageCallback): событие нажатия на callback-кнопку.
         context (MemoryContext): контекст FSM для сохранения данных.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -333,7 +333,7 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
         event (MessageCallback): событие нажатия на callback-кнопку.
         context (MemoryContext): контекст FSM для получения данных.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -370,7 +370,7 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
     """
     Отмена ответа на тикет: очищает состояние и показывает детали тикета.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -395,7 +395,6 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
     ticket_text = format_ticket_details(ticket, messages)
 
     # Используем FILTER_ALL как значение по умолчанию для кнопки "Назад"
-    from app.handlers.moderation import FILTER_ALL  # или импортировать в начале файла
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=ticket_text,
@@ -417,7 +416,7 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
         event (MessageCallback): событие нажатия на callback-кнопку.
         context (MemoryContext): контекст FSM для сохранения данных и состояния.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 
@@ -536,7 +535,7 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     Ожидает callback_data вида "mod_close_<id>".
     После закрытия показывает обновлённую карточку тикета.
     """
-    if not await is_moderator(event.user.user_id):
+    if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
 

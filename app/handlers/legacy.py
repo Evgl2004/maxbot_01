@@ -199,7 +199,7 @@ async def process_rules_accept(event: MessageCallback, context: MemoryContext) -
     if event.callback.payload != "accept_rules":
         return
 
-    user_id = event.user.user_id
+    user_id = event.from_user.user_id
     logger.info(f"Legacy пользователь {user_id} принял правила")
 
     await db.update_user(
@@ -303,7 +303,7 @@ async def process_gender_input(event: MessageCallback, context: MemoryContext) -
     if event.callback.payload not in ["gender_male", "gender_female"]:
         return
 
-    user_id = event.user.user_id
+    user_id = event.from_user.user_id
     data_from_context = await context.get_data()
     missing_fields = data_from_context.get('missing_fields', [])
     if not missing_fields or missing_fields[0] != 'gender':
@@ -488,7 +488,7 @@ async def process_edit_gender(event: MessageCallback, context: MemoryContext) ->
     if event.callback.payload not in ["gender_male", "gender_female"]:
         return
 
-    user_id = event.user.user_id
+    user_id = event.from_user.user_id
     gender = "male" if event.callback.payload == "gender_male" else "female"
     await db.update_user(user_id, gender=gender)
 
@@ -505,7 +505,7 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     if event.callback.payload not in ["notify_yes", "notify_no"]:
         return
 
-    user_id = event.user.user_id
+    user_id = event.from_user.user_id
     notifications_allowed = (event.callback.payload == "notify_yes")
     choice_text = "согласился на уведомления" if notifications_allowed else "отказался от уведомлений"
     logger.info(f"Legacy user {user_id} {choice_text}")
@@ -546,7 +546,7 @@ async def retry_iiko_registration(event: MessageCallback, context: MemoryContext
         return
 
     await event.answer("")
-    user = await db.get_user(event.user.user_id)
+    user = await db.get_user(event.from_user.user_id)
     if not user:
         await event.message.answer(text="❌ Ошибка загрузки пользователя")
         await context.clear()
