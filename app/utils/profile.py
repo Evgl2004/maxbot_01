@@ -61,7 +61,7 @@ async def show_profile_review(
         )
     else:
         await bot.edit_message(
-            message_id=event.message.id,
+            message_id=event.message.body.mid,
             text=text,
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN

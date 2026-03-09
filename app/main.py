@@ -9,6 +9,7 @@
 
 import asyncio          # библиотека для асинхронного программирования
 import sys              # системные функции, например, для выхода при ошибках
+import signal
 
 from loguru import logger  # красивое и удобное логирование
 
@@ -216,19 +217,30 @@ async def main() -> None:
     await on_startup(bot)
 
     # ------------------------------------------------------------
-    # 4. Запуск поллинга (основной цикл)
+    # 4. Запуск поллинга с обработкой сигналов
     # ------------------------------------------------------------
+    stop_event = asyncio.Event()
+
+    def signal_handler():
+        logger.info("📥 Получен сигнал завершения, останавливаем бота...")
+        stop_event.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, signal_handler)
+
     try:
         logger.info("🔄 Запуск поллинга...")
-        # start_polling – это бесконечный цикл, который будет работать,
-        # пока его не прервать (например, по Ctrl+C).
-        await bot.delete_webhook()
-        await dp.start_polling(bot)
+        polling_task = asyncio.create_task(dp.start_polling(bot))
+        await stop_event.wait()  # ждём сигнала
+        polling_task.cancel()  # отменяем задачу поллинга
+        try:
+            await polling_task
+        except asyncio.CancelledError:
+            logger.info("⏹️ Поллинг остановлен")
     except KeyboardInterrupt:
-        # Если пользователь нажал Ctrl+C в терминале
         logger.info("👋 Бот остановлен пользователем")
     except Exception as e:
-        # Любая другая непредвиденная ошибка
         logger.error(f"💥 Непредвиденная ошибка: {e}")
     finally:
         # ------------------------------------------------------------
