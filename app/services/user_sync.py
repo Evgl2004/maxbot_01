@@ -50,7 +50,7 @@ async def sync_user_with_iiko(
     if isinstance(event, MessageCallback):
         bot = event.bot
         chat_id = event.message.recipient.chat_id
-        message_id = event.message.id
+        message_id = event.message.body.mid
         is_callback = True
     else:  # Message
         bot = event.bot
