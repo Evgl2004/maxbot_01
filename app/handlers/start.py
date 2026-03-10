@@ -35,48 +35,70 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
         logger.error(f"Пользователь user_id={user_id} не найден в БД")
         return
 
+    # Логируем все поля, влияющие на маршрутизацию
+    logger.info(
+        f"=== start_command: user_id={user_id}, "
+        f"rules_accepted={db_user.rules_accepted}, "
+        f"is_registered={db_user.is_registered}, "
+        f"is_legacy={db_user.is_legacy}"
+    )
+
     # Устаревший пользователь
     if db_user.is_registered and db_user.is_legacy:
         logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления")
+        logger.info(f"=== start_command: устаревший пользователь, вызываем start_legacy_upgrade")
         # Передаём context, event, db_user
         await start_legacy_upgrade(event, db_user, context)
+        logger.info(f"=== start_command: после start_legacy_upgrade, возврат")
         return
 
     # Правила не приняты
     if not db_user.rules_accepted:
         # Проверяем, может быть уже есть состояние?
+        logger.info(f"=== start_command: правила не приняты, обрабатываем")
         current_state = await context.get_state()
+        logger.info(f"=== start_command: текущее состояние для правил: {current_state}")
         if current_state is None:
             await context.set_state(Registration.waiting_for_rules_consent)
             text, keyboard = get_prompt_for_state(Registration.waiting_for_rules_consent, context)
             await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
+            logger.info(f"=== start_command: установлено состояние waiting_for_rules_consent")
         else:
             # Если состояние уже есть, отправляем соответствующий запрос
             text, keyboard = get_prompt_for_state(current_state, context)
             if text == "__SHOW_PROFILE_REVIEW__":
                 await show_profile_review(event, context, target_state=None)
+                logger.info(f"=== start_command: вызван show_profile_review для состояния {current_state}")
             else:
                 await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
+                logger.info(f"=== start_command: отправлен запрос для состояния {current_state}")
         return
 
     # Регистрация не завершена
     if not db_user.is_registered:
+        logger.info(f"=== start_command: регистрация не завершена, обрабатываем")
         current_state = await context.get_state()
+        logger.info(f"=== start_command: текущее состояние для регистрации: {current_state}")
         if current_state is None:
             await context.set_state(Registration.waiting_for_contact)
             text, keyboard = get_prompt_for_state(Registration.waiting_for_contact, context)
             await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
+            logger.info(f"=== start_command: установлено состояние waiting_for_contact")
         else:
             text, keyboard = get_prompt_for_state(current_state, context)
             if text == "__SHOW_PROFILE_REVIEW__":
                 await show_profile_review(event, context, target_state=None)
+                logger.info(f"=== start_command: вызван show_profile_review для состояния {current_state}")
             else:
                 await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
+                logger.info(f"=== start_command: отправлен запрос для состояния {current_state}")
         return
 
     # Всё готово – главное меню
+    logger.info(f"=== start_command: всё готово, показываем главное меню")
     await show_main_menu(
         chat_id=event.message.recipient.chat_id,
         bot=event.bot,
         user_name=db_user.first_name_input or "Гость"
     )
+    logger.info(f"=== start_command: главное меню отправлено")
