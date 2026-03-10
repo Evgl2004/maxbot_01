@@ -460,10 +460,16 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     # Уведомление модераторов
     try:
         open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
+
+        # Формируем отображаемое имя пользователя
+        user_display = (event.from_user.username or
+                        f"{event.from_user.first_name or ''} {event.from_user.last_name or ''}".strip() or
+                        f"ID:{event.from_user.user_id}")
+
         notification_text = (
             f"📬 *Новый тикет от пользователя!*\n\n"
             f"🎫 Тикет #{ticket.id}\n"
-            f"👤 Пользователь: {event.from_user.name or event.from_user.first_name}\n"
+            f"👤 Пользователь: {user_display}\n"
             f"❓ Вопрос: {event.message.body.text[:100]}{'...' if len(event.message.body.text) > 100 else ''}\n\n"
             f"📊 *Статистика:*\n"
             f"📬 Новые тикеты: {open_count}\n"
