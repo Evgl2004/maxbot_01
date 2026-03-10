@@ -63,6 +63,8 @@ async def show_profile_review(
             parse_mode=ParseMode.MARKDOWN
         )
     else:
+        # Сначала отвечаем на callback, чтобы убрать состояние загрузки
+        await event.answer("")
         # Удаляем старое сообщение с кнопками выбора пола
         await bot.delete_message(event.message.body.mid)
         # Отправляем новое сообщение с анкетой
