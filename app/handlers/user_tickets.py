@@ -80,11 +80,17 @@ async def user_tickets_list(event: MessageCallback) -> None:
 
     text = f"📋 Ваши обращения (страница 1/{total_pages}):"
     logger.info(f"user_tickets_list: передаём в клавиатуру {len(tickets)} тикетов")
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+
+    # Отправляем новое сообщение с клавиатурой
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=text,
         attachments=[UserTicketsKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
     )
+
     await event.answer("")
 
 
