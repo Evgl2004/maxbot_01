@@ -27,7 +27,7 @@ def get_rules_keyboard():
     """
     builder = InlineKeyboardBuilder()
     builder.row(
-        LinkButton(text="📄 Открыть документы", url="https://sagur.24vds.ru/agreement/")
+        LinkButton(text="📄 Открыть документы", url="https://sagur.24vds.ru/agreement/#")
     )
     builder.row(
         CallbackButton(text="✅ Согласен", payload="accept_rules")
@@ -80,7 +80,7 @@ def get_notifications_keyboard():
     """
     builder = InlineKeyboardBuilder()
     builder.row(
-        LinkButton(text="📄 Условия получения уведомлений", url="https://sagur.24vds.ru/notifications/")
+        LinkButton(text="📄 Условия получения уведомлений", url="https://sagur.24vds.ru/notifications/#")
     )
     builder.row(
         CallbackButton(text="✅ О да, кидай всё, что есть! 🔥", payload="notify_yes")

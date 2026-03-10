@@ -32,14 +32,30 @@ class LoggingMiddleware(BaseMiddleware):
             user = event.from_user
             user_id = getattr(user, 'user_id', None)
             if user_id:
-                user_name = getattr(user, 'name', 'Неизвестно')
+                if user:
+                    if user.username:
+                        user_name = user.username
+                    else:
+                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                        if not user_name:
+                            user_name = "Неизвестно"
+                else:
+                    user_name = "Неизвестно"
                 text = event.message.body.text[:50] if event.message.body.text else 'нет текста'
                 logger.info(f"📥 Сообщение от {user_id} ({user_name}): '{text}'")
         elif isinstance(event, MessageCallback):
             user = event.from_user
             user_id = getattr(user, 'user_id', None)
             if user_id:
-                user_name = getattr(user, 'name', 'Неизвестно')
+                if user:
+                    if user.username:
+                        user_name = user.username
+                    else:
+                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                        if not user_name:
+                            user_name = "Неизвестно"
+                else:
+                    user_name = "Неизвестно"
                 payload = event.callback.payload
                 logger.info(f"🔘 Callback от {user_id} ({user_name}): '{payload}'")
         return await handler(event, data)
