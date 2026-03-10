@@ -479,7 +479,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
         for moderator in moderators:
             try:
                 await bot.send_message(
-                    chat_id=moderator.id,
+                    user_id=moderator.id,
                     text=notification_text,
                     parse_mode=ParseMode.MARKDOWN
                 )

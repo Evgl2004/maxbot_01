@@ -50,6 +50,9 @@ async def user_tickets_list(event: MessageCallback) -> None:
     Args:
         event (MessageCallback): событие нажатия на callback-кнопку.
     """
+
+    logger.info(f"user_tickets_list: вызван для user {event.from_user.user_id}")
+
     bot = event.bot
     user_id = event.from_user.user_id
 
