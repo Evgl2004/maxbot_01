@@ -584,13 +584,14 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
         return
 
     await context.set_state(Registration.waiting_for_iiko_registration)
+    logger.info(f"=== process_notifications_consent: перед вызовом sync_user_with_iiko для пользователя {user_id}")
     success = await sync_user_with_iiko(event, user)
-    logger.info(f"sync_user_with_iiko вернула {success} для пользователя {user_id}")
+    logger.info(f"=== process_notifications_consent: sync_user_with_iiko вернула {success} для пользователя {user_id}")
     if success:
         await context.clear()
-        logger.info(f"Контекст очищен для пользователя {user_id}")
+        logger.info(f"=== process_notifications_consent: контекст очищен для пользователя {user_id}")
     else:
-        logger.warning(f"sync_user_with_iiko не удалась, контекст не очищен")
+        logger.warning(f"=== process_notifications_consent: sync_user_with_iiko не удалась, контекст не очищен")
 
 
 @router.message_callback(Registration.waiting_for_iiko_registration)
@@ -616,9 +617,9 @@ async def retry_iiko_registration(event: MessageCallback, context: MemoryContext
         return
 
     success = await sync_user_with_iiko(event, user)
-    logger.info(f"sync_user_with_iiko в retry вернула {success} для пользователя {user.id}")
+    logger.info(f"=== retry_iiko_registration: sync_user_with_iiko вернула {success} для пользователя {user.id}")
     if success:
         await context.clear()
-        logger.info(f"Контекст очищен для пользователя {user.id} после повторной попытки")
+        logger.info(f"=== retry_iiko_registration: контекст очищен для пользователя {user.id}")
     else:
         logger.warning(f"sync_user_with_iiko в retry не удалась, контекст не очищен")

@@ -58,16 +58,20 @@ async def sync_user_with_iiko(
         message_id = None
         is_callback = False
 
+    logger.info(f"=== sync_user_with_iiko: начало для пользователя {user.id}, is_callback={is_callback}")
+
     # Проверяем наличие номера телефона
     phone = str(user.phone_number) if user.phone_number else ""
     if not phone:
         text = "❌ Ошибка: номер телефона не найден."
         await bot.send_message(chat_id=chat_id, text=text)
+        logger.info(f"=== sync_user_with_iiko: нет телефона, возвращаем False для пользователя {user.id}")
         return False
 
     card_number = None
 
     # 1. Пытаемся получить информацию о клиенте из iiko
+    logger.info(f"=== sync_user_with_iiko: запрашиваем информацию по телефону {phone}")
     try:
         client_info = await iiko_service.get_customer_info(phone)
     except Exception as e:
@@ -76,9 +80,11 @@ async def sync_user_with_iiko(
 
     # 2. Если клиент не найден – регистрируем нового
     if client_info is None:
+        logger.info(f"=== sync_user_with_iiko: клиент не найден, регистрируем нового")
         customer_id, reg_msg = await iiko_service.register_customer(user)
         if not customer_id:
             text = f"❌ Не удалось зарегистрировать в iiko.\nПричина: {reg_msg}"
+            logger.info(f"=== sync_user_with_iiko: регистрация не удалась, возвращаем False")
             if is_callback:
                 await bot.edit_message(
                     message_id=message_id,
@@ -89,44 +95,53 @@ async def sync_user_with_iiko(
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return False
+        logger.info(f"=== sync_user_with_iiko: клиент зарегистрирован, customer_id={customer_id}")
         # Клиент создан, карт пока нет
         client_info = {'customer_id': customer_id, 'cards': []}
     else:
+        logger.info(f"=== sync_user_with_iiko: клиент существует, обновляем данные")
         # 3. Клиент существует – обновляем его данные (например, если изменилось имя)
         existing_customer_id = client_info['customer_id']
         customer_id, upd_msg = await iiko_service.register_customer(user, customer_id=existing_customer_id)
         if not customer_id:
             text = f"❌ Не удалось обновить данные в iiko.\nПричина: {upd_msg}"
+            logger.info(f"=== sync_user_with_iiko: обновление не удалось, возвращаем False")
             if is_callback:
                 await bot.edit_message(
                     message_id=message_id,
                     text=text,
                     attachments=[retry_keyboard()]
                 )
-                await bot.answer_callback(event.callback_id, "")
+                await event.answer("")
+                await event.answer("")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return False
+        logger.info(f"=== sync_user_with_iiko: данные обновлены, customer_id={customer_id}")
         client_info['customer_id'] = customer_id
 
     # 4. Проверяем наличие карт у клиента
     cards = client_info.get('cards', [])
+    logger.info(f"=== sync_user_with_iiko: у клиента {len(cards)} карт")
     if not cards:
+        logger.info(f"=== sync_user_with_iiko: карт нет, выпускаем новую")
         # Выпускаем новую карту
         success, card_msg, card_number = await iiko_service.issue_card_for_customer(str(phone),
                                                                                     client_info['customer_id'])
         if not success:
             text = f"❌ Не удалось выпустить карту.\nПричина: {card_msg}"
+            logger.info(f"=== sync_user_with_iiko: выпуск карты не удался, возвращаем False")
             if is_callback:
                 await bot.edit_message(
                     message_id=message_id,
                     text=text,
                     attachments=[retry_keyboard()]
                 )
-                await bot.answer_callback(event.callback_id, "")
+                await event.answer("")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return False
+        logger.info(f"=== sync_user_with_iiko: карта выпущена, номер {card_number}")
         # После выпуска обновляем информацию о клиенте
         client_info = await iiko_service.get_customer_info(phone)
         if client_info:
