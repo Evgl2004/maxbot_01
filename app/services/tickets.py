@@ -12,6 +12,8 @@ from sqlalchemy import select, func, text
 from app.database.models import Ticket, TicketMessage
 from app.database import db
 
+from loguru import logger
+
 
 class TicketService:
     """Сервис для работы с тикетами."""
@@ -253,6 +255,9 @@ class TicketService:
         Returns:
             Tuple[List[Ticket], int]: список тикетов на текущей странице и общее количество тикетов.
         """
+
+        logger.info(f"get_tickets_page: page={page}, per_page={per_page}, statuses={statuses}, user_id={user_id}")
+
         async with db.session_maker() as session:
             query = select(Ticket)
             if statuses:
@@ -267,6 +272,8 @@ class TicketService:
             query = query.offset((page - 1) * per_page).limit(per_page)
             result = await session.execute(query)
             tickets = result.scalars().all()
+
+            logger.info(f"get_tickets_page: получено {len(tickets)} тикетов, всего {total_count}")
 
             return tickets, total_count
 
