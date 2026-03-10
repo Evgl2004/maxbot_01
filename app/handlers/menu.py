@@ -20,10 +20,11 @@ import tempfile
 import os
 
 from maxapi import Router
-from maxapi.types import MessageCreated, MessageCallback, Command
+from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
 from maxapi.types import InputMedia
+from maxapi import F
 
 from app.database import db
 from app.services.tickets import ticket_service
@@ -67,7 +68,7 @@ async def show_main_menu(chat_id: int, bot, user_name: str = "Гость") -> No
 
 
 # ---------- Обработчики пунктов главного меню ----------
-@router.message_callback(Command('balance'))
+@router.message_callback(F.callback.payload == 'balance')
 async def process_balance(event: MessageCallback) -> None:
     """
     Показывает информацию о балансе бонусов из iiko.
@@ -129,7 +130,7 @@ async def process_balance(event: MessageCallback) -> None:
     logger.info(f"process_balance: баланс успешно отправлен для user {event.from_user.user_id}")
 
 
-@router.message_callback(Command('virtual_card'))
+@router.message_callback(F.callback.payload == 'virtual_card')
 async def process_virtual_card(event: MessageCallback) -> None:
     """
     Показывает все карты пользователя из iiko с QR-кодами.
@@ -261,7 +262,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
     logger.info(f"process_virtual_card: финальное сообщение отправлено для user {event.from_user.user_id}")
 
 
-@router.message_callback(Command('support'))
+@router.message_callback(F.callback.payload == 'support')
 async def process_support(event: MessageCallback) -> None:
     """
     Показывает вложенное меню отдела заботы с учётом наличия тикетов у пользователя.
@@ -288,7 +289,7 @@ async def process_support(event: MessageCallback) -> None:
     logger.info(f"process_support: меню отдела заботы отправлено для user {event.from_user.user_id}")
 
 
-@router.message_callback(Command('vacancies'))
+@router.message_callback(F.callback.payload == 'vacancies')
 async def process_vacancies(event: MessageCallback) -> None:
     """
     Показывает информацию о вакансиях и ссылку на сайт с вакансиями.
@@ -322,7 +323,7 @@ async def process_vacancies(event: MessageCallback) -> None:
 
 
 # ---------- Обработчики подменю отдела заботы ----------
-@router.message_callback(Command('support_feedback'))
+@router.message_callback(F.callback.payload == 'support_feedback')
 async def process_feedback(event: MessageCallback) -> None:
     """
     Отправляет ссылку на внешний сервис отзывов (заглушка).
@@ -343,7 +344,7 @@ async def process_feedback(event: MessageCallback) -> None:
     )
 
 
-@router.message_callback(Command('support_question'))
+@router.message_callback(F.callback.payload == 'support_question')
 async def process_question(event: MessageCallback, context: MemoryContext) -> None:
     """
     Обработчик функции 'Мне только спросить' – начало создания тикета.
@@ -438,7 +439,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     await context.clear()
 
 
-@router.message_callback(Command('support_contacts'))
+@router.message_callback(F.callback.payload == 'support_contacts')
 async def process_contacts(event: MessageCallback) -> None:
     """
     Показывает контактную информацию.
@@ -460,7 +461,7 @@ async def process_contacts(event: MessageCallback) -> None:
 
 
 # ---------- Навигационные кнопки ----------
-@router.message_callback(Command('back_to_main'))
+@router.message_callback(F.callback.payload == 'back_to_main')
 async def process_back_to_main(event: MessageCallback, context: MemoryContext) -> None:
     """
     Возврат в главное меню.
@@ -496,7 +497,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
     logger.info(f"process_back_to_main: главное меню отправлено для user {event.from_user.user_id}")
 
 
-@router.message_callback(Command('back_to_support'))
+@router.message_callback(F.callback.payload == 'back_to_support')
 async def process_back_to_support(event: MessageCallback, context: MemoryContext) -> None:
     """
     Возврат во вложенное меню отдела заботы.

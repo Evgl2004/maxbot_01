@@ -23,6 +23,7 @@ from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
+from maxapi import F
 
 from app.database import db
 from app.services.tickets import ticket_service
@@ -129,7 +130,7 @@ async def moderator_menu(event: MessageCreated) -> None:
     )
 
 
-@router.message_callback(Command('mod_main'))
+@router.message_callback(F.callback.payload == 'mod_main')
 async def mod_main_callback(event: MessageCallback) -> None:
     """Главное меню модератора, вызываемое по callback (например, после возврата из списка).
 
@@ -161,7 +162,7 @@ async def mod_main_callback(event: MessageCallback) -> None:
 
 
 # ---------- Список тикетов ----------
-@router.message_callback(Command('mod_tickets'))
+@router.message_callback(F.callback.payload == 'mod_tickets')
 async def mod_tickets_list(event: MessageCallback) -> None:
     """Обработчик кнопки «Все тикеты» – показывает первую страницу списка.
 
@@ -194,9 +195,9 @@ async def mod_tickets_list(event: MessageCallback) -> None:
     await event.answer("")
 
 
-@router.message_callback(Command('mod_tickets_all'))
-@router.message_callback(Command('mod_tickets_open'))
-@router.message_callback(Command('mod_tickets_progress'))
+@router.message_callback(F.callback.payload == 'mod_tickets_all')
+@router.message_callback(F.callback.payload == 'mod_tickets_open')
+@router.message_callback(F.callback.payload == 'mod_tickets_progress')
 async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -> None:
     """Обработчик для отображения списка тикетов с фильтром.
 
@@ -253,9 +254,9 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
     await event.answer("")
 
 
-@router.message_callback(Command('mod_tickets_page_all'))
-@router.message_callback(Command('mod_tickets_page_open'))
-@router.message_callback(Command('mod_tickets_page_progress'))
+@router.message_callback(F.callback.payload == 'mod_tickets_page_all')
+@router.message_callback(F.callback.payload == 'mod_tickets_page_open')
+@router.message_callback(F.callback.payload == 'mod_tickets_page_progress')
 async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryContext) -> None:
     """Обработчик переключения страниц списка тикетов с фильтром.
 
@@ -322,7 +323,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
 
 
 # ---------- Детали тикета ----------
-@router.message_callback(Command('mod_ticket_'))
+@router.message_callback(F.callback.payload == 'mod_ticket_')
 async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> None:
     """Показывает детальную информацию по тикету.
 
@@ -365,7 +366,7 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     await event.answer("")
 
 
-@router.message_callback(Command('mod_cancel_reply_'))
+@router.message_callback(F.callback.payload == 'mod_cancel_reply_')
 async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена ответа на тикет: очищает состояние и показывает детали тикета.
@@ -405,7 +406,7 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
 
 
 # ---------- Ответ на тикет ----------
-@router.message_callback(Command('mod_reply_'))
+@router.message_callback(F.callback.payload == 'mod_reply_')
 async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
     """Начало ответа на тикет – устанавливает состояние ожидания ответа.
 
@@ -528,7 +529,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
 
 
 # ---------- Закрытие тикета ----------
-@router.message_callback(Command('mod_close_'))
+@router.message_callback(F.callback.payload == 'mod_close_')
 async def mod_close_ticket(event: MessageCallback) -> None:
     """Закрывает тикет (устанавливает статус 'closed').
 
@@ -570,5 +571,5 @@ async def mod_close_ticket(event: MessageCallback) -> None:
         message_id=event.message.body.mid,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)],
-        parse_mode = ParseMode.HTML
+        parse_mode=ParseMode.HTML
     )

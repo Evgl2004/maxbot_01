@@ -25,6 +25,7 @@ from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback, Command
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
+from maxapi import F
 
 from app.config import settings
 from app.database import db
@@ -89,7 +90,7 @@ async def admin_command(event: MessageCreated) -> None:
 
 
 # ---------- Начало создания рассылки ----------
-@router.message_callback(Command('admin_broadcast'))
+@router.message_callback(F.callback.payload == 'admin_broadcast')
 async def start_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Нажатие на кнопку «Рассылка» – переход к вводу сообщения.
@@ -154,7 +155,7 @@ async def receive_broadcast_message(event: MessageCreated, context: MemoryContex
 
 
 # ---------- Добавление кнопки ----------
-@router.message_callback(Command('broadcast_add_button'))
+@router.message_callback(F.callback.payload == 'broadcast_add_button')
 async def add_button_to_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь выбрал «Добавить кнопку». Переходим к вводу данных кнопки.
@@ -259,7 +260,7 @@ async def receive_broadcast_button(event: MessageCreated, context: MemoryContext
 
 
 # ---------- Рассылка без кнопки ----------
-@router.message_callback(Command('broadcast_no_button'))
+@router.message_callback(F.callback.payload == 'broadcast_no_button')
 async def broadcast_without_button(event: MessageCallback) -> None:
     """
     Пользователь выбрал «Отправить без кнопки». Сразу переходим к подтверждению.
@@ -289,7 +290,7 @@ async def broadcast_without_button(event: MessageCallback) -> None:
 
 
 # ---------- Подтверждение рассылки ----------
-@router.message_callback(Command('broadcast_confirm_yes'))
+@router.message_callback(F.callback.payload == 'broadcast_confirm_yes')
 async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Запуск рассылки (временно – заглушка).
@@ -317,7 +318,7 @@ async def confirm_broadcast(event: MessageCallback, context: MemoryContext) -> N
     await context.clear()
 
 
-@router.message_callback(Command('broadcast_confirm_no'))
+@router.message_callback(F.callback.payload == 'broadcast_confirm_no')
 async def cancel_broadcast(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена рассылки.
@@ -338,7 +339,7 @@ async def cancel_broadcast(event: MessageCallback, context: MemoryContext) -> No
     )
 
 
-@router.message_callback(Command('broadcast_cancel'))
+@router.message_callback(F.callback.payload == 'broadcast_cancel')
 async def cancel_broadcast_creation(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена создания рассылки на любом этапе.
