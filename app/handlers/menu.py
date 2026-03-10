@@ -18,12 +18,13 @@
 from loguru import logger
 import tempfile
 import os
+import aiohttp
 
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
-from maxapi.types import InputMedia
+from maxapi.enums.upload_type import UploadType
 from maxapi import F
 
 from app.database import db
@@ -220,7 +221,6 @@ async def process_virtual_card(event: MessageCallback) -> None:
         card_number = card['number']
         qr_photo = await generate_qr_code(card_number)
 
-        # Сохраняем изображение во временный файл
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
             tmp.write(qr_photo)
             tmp_path = tmp.name
@@ -229,16 +229,62 @@ async def process_virtual_card(event: MessageCallback) -> None:
         if card.get('valid_to'):
             caption += f"\nДействует до: {card['valid_to']}"
 
-        media = InputMedia(path=tmp_path)
-        await bot.send_message(
-            chat_id=event.message.recipient.chat_id,
-            text=caption,
-            attachments=[media]
-        )
-        logger.info(f"process_virtual_card: отправлен QR для карты {card_number} "
-                    f"пользователю {event.from_user.user_id}")
+        # Ручная загрузка изображения и получение токена
+        try:
+            # Получаем URL для загрузки изображения
+            upload_data = await bot.get_upload_url(UploadType.IMAGE)
+            if not upload_data or not upload_data.url:
+                logger.error(f"Не удалось получить URL для загрузки изображения")
+                continue
 
-        os.unlink(tmp_path)  # удаляем временный файл
+            # Превращаем относительный URL в абсолютный
+            upload_url = upload_data.url
+            if upload_url.startswith('/'):
+                base_api_url = "https://botapi.max.ru"
+                upload_url = base_api_url + upload_url
+                logger.debug(f"URL загрузки исправлен на абсолютный: {upload_url}")
+
+            # Загружаем файл напрямую через aiohttp
+            async with aiohttp.ClientSession() as session:
+                with open(tmp_path, 'rb') as f:
+                    file_content = f.read()
+                data = aiohttp.FormData()
+                data.add_field('data', file_content, filename=os.path.basename(tmp_path), content_type='image/png')
+                async with session.post(upload_url, data=data) as resp:
+                    if resp.status != 200:
+                        text = await resp.text()
+                        logger.error(f"Ошибка загрузки изображения: {resp.status} - {text}")
+                        continue
+                    response_json = await resp.json()
+
+            # Извлекаем токен из ответа
+            token = None
+            if 'photos' in response_json:
+                first_photo_key = list(response_json['photos'].keys())[0]
+                token = response_json['photos'][first_photo_key]['token']
+            elif 'token' in response_json:
+                token = response_json['token']
+            else:
+                logger.error(f"Не удалось извлечь токен из ответа: {response_json}")
+                continue
+
+            # Отправляем сообщение с вложением, используя токен
+            from maxapi.types.attachments.upload import AttachmentUpload, AttachmentPayload
+            attachment = AttachmentUpload(
+                type=UploadType.IMAGE,
+                payload=AttachmentPayload(token=token)
+            )
+            await bot.send_message(
+                chat_id=event.message.recipient.chat_id,
+                text=caption,
+                attachments=[attachment]
+            )
+            logger.info(f"process_virtual_card: отправлен QR для карты {card_number} "
+                        f"пользователю {event.from_user.user_id}")
+        except Exception as e:
+            logger.exception(f"Ошибка при отправке QR-кода: {e}")
+        finally:
+            os.unlink(tmp_path)  # удаляем временный файл
 
     card_count = len(cards)
     if card_count == 1:
