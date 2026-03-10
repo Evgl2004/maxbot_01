@@ -47,6 +47,8 @@ from app.utils.validation import (
 from app.utils.profile import show_profile_review
 from app.services.user_sync import sync_user_with_iiko
 
+from app.utils.fsm_helpers import get_prompt_for_state
+
 router = Router()
 
 
@@ -157,35 +159,49 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback],
 
 
 # ---------- Начало обновления ----------
-async def start_legacy_upgrade(message: MessageCreated, user):
+async def start_legacy_upgrade(event: MessageCreated, user, context: MemoryContext):
     """
     Запускает процесс обновления для устаревшего пользователя.
     Вызывается из start.py, когда обнаружен пользователь с is_legacy=True.
 
     Args:
-        message (MessageCreated): событие, инициировавшее старт
+        event (MessageCreated): событие, инициировавшее старт
         user: объект пользователя из БД
+        context (MemoryContext): контекст FSM для управления состоянием
     """
     logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.user_id} (is_legacy={user.is_legacy})")
-    bot = message.bot
+    bot = event.bot
 
-    # Приветственное сообщение
+    current_state = await context.get_state()
+    if current_state is not None:
+        # Если состояние уже есть – отправляем запрос, соответствующий шагу
+        text, keyboard = get_prompt_for_state(current_state, context)
+        if text == "__SHOW_PROFILE_REVIEW__":
+            await show_profile_review(event, context, target_state=None)
+        else:
+            await bot.send_message(
+                chat_id=event.chat.chat_id,
+                text=text,
+                attachments=[keyboard] if keyboard else []
+            )
+        return
+
+    # Если состояния нет – начинаем процесс с правил
     text = (
         "👋 Здравствуй, друг! Мы обновили бота и хотим убедиться, "
         "что твои данные актуальны, а также получить необходимые согласия. "
         "Это займёт всего пару минут."
     )
-    await bot.send_message(chat_id=message.chat.id, text=text)
+    await bot.send_message(chat_id=event.chat.chat_id, text=text)
 
-    # Показываем правила
     await bot.send_message(
-        chat_id=message.chat.id,
+        chat_id=event.chat.chat_id,
         text="📜 Для начала нам необходимо получить твоё согласие на обработку персональных данных "
              "и согласие с политикой конфиденциальности.\n\n"
              "👉 Ознакомься с документами по ссылке ниже и нажми «✅ Согласен».",
         attachments=[get_rules_keyboard()]
     )
-    await message.set_state(LegacyUpgrade.waiting_for_rules_consent)
+    await context.set_state(LegacyUpgrade.waiting_for_rules_consent)
 
 
 # ---------- Обработчики состояний ----------

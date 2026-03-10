@@ -10,10 +10,12 @@ from maxapi.types import Command, MessageCreated
 from maxapi.context import MemoryContext
 
 from app.database import db
-from app.keyboards.registration import get_rules_keyboard, get_contact_keyboard
 from app.states.registration import Registration
 from app.handlers.menu import show_main_menu
 from app.handlers.legacy import start_legacy_upgrade
+
+from app.utils.fsm_helpers import get_prompt_for_state
+from app.utils.profile import show_profile_review
 
 router = Router()
 
@@ -36,43 +38,40 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
     # Устаревший пользователь
     if db_user.is_registered and db_user.is_legacy:
         logger.info(f"Устаревший пользователь user_id={user_id}, запускаем процесс обновления")
-        await start_legacy_upgrade(event, db_user)
+        # Передаём context, event, db_user
+        await start_legacy_upgrade(event, db_user, context)
         return
 
     # Правила не приняты
     if not db_user.rules_accepted:
-        await event.message.answer(
-            text=(
-                "👋 Здравствуй Друг!\n\n"
-                "Добро пожаловать к нам в гости!\n\n"
-                "📜 Для начала нам необходимо получить твоё согласие на обработку персональных данных "
-                "и согласие с политикой конфиденциальности.\n\n"
-                "👉 Ознакомься с документами по ссылке ниже и нажми «✅ Согласен»."
-            ),
-            attachments=[get_rules_keyboard()]
-        )
-        await context.set_state(Registration.waiting_for_rules_consent)
+        # Проверяем, может быть уже есть состояние?
+        current_state = await context.get_state()
+        if current_state is None:
+            await context.set_state(Registration.waiting_for_rules_consent)
+            text, keyboard = get_prompt_for_state(Registration.waiting_for_rules_consent, context)
+            await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
+        else:
+            # Если состояние уже есть, отправляем соответствующий запрос
+            text, keyboard = get_prompt_for_state(current_state, context)
+            if text == "__SHOW_PROFILE_REVIEW__":
+                await show_profile_review(event, context, target_state=None)
+            else:
+                await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
         return
 
     # Регистрация не завершена
     if not db_user.is_registered:
         current_state = await context.get_state()
         if current_state is None:
-            # Начинаем регистрацию с запроса контакта
             await context.set_state(Registration.waiting_for_contact)
-            await event.message.answer(
-                text=(
-                    "📱 Чтобы подключиться к программе лояльности, нажми кнопку «Поделиться контактом».\n"
-                    "После этого мы будем знакомы чуть ближе."
-                ),
-                attachments=[get_contact_keyboard()]
-            )
+            text, keyboard = get_prompt_for_state(Registration.waiting_for_contact, context)
+            await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
         else:
-            # У пользователя уже есть активное состояние – просто продолжаем
-            await event.message.answer(
-                text="👋 Вы уже в процессе регистрации. Пожалуйста, завершите её, следуя инструкциям.",
-                attachments=[]
-            )
+            text, keyboard = get_prompt_for_state(current_state, context)
+            if text == "__SHOW_PROFILE_REVIEW__":
+                await show_profile_review(event, context, target_state=None)
+            else:
+                await event.message.answer(text=text, attachments=[keyboard] if keyboard else [])
         return
 
     # Всё готово – главное меню
