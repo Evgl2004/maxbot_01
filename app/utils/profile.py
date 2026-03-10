@@ -57,7 +57,7 @@ async def show_profile_review(
 
     if isinstance(event, MessageCreated):
         await bot.send_message(
-            chat_id=event.chat.chat_id,
+            chat_id=event.message.recipient.chat_id,
             text=text,
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN
@@ -67,7 +67,7 @@ async def show_profile_review(
         await bot.delete_message(event.message.body.mid)
         # Отправляем новое сообщение с анкетой
         await bot.send_message(
-            chat_id=event.message.chat.chat_id,
+            chat_id=event.message.recipient.chat_id,
             text=text,
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN
