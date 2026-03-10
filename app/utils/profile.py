@@ -74,6 +74,5 @@ async def show_profile_review(
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN
         )
-        await event.answer("")
     if target_state:
         await context.set_state(target_state)
