@@ -62,6 +62,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
         per_page=5,
         user_id=user_id
     )
+    logger.info(f"user_tickets_list: получено {len(tickets)} тикетов на странице, всего {total_count}")
     total_pages = (total_count + 5 - 1) // 5
 
     if not tickets:
@@ -78,6 +79,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
         return
 
     text = f"📋 Ваши обращения (страница 1/{total_pages}):"
+    logger.info(f"user_tickets_list: передаём в клавиатуру {len(tickets)} тикетов")
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=text,

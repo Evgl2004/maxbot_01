@@ -17,6 +17,8 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 from app.database.models import Ticket  # для аннотации типа
 
+from loguru import logger
+
 
 class UserTicketsKeyboard:
     """
@@ -43,6 +45,9 @@ class UserTicketsKeyboard:
             InlineKeyboardMarkup: клавиатура с кнопками тикетов,
                                   кнопками навигации и кнопкой возврата в отдел заботы.
         """
+
+        logger.info(f"tickets_list: получено {len(tickets)} тикетов, страница {current_page}/{total_pages}")
+
         builder = InlineKeyboardBuilder()
 
         # Кнопки для каждого тикета
