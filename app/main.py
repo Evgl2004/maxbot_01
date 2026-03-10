@@ -264,7 +264,7 @@ async def main() -> None:
 
 def _patch_dispatcher(dispatcher: Dispatcher) -> None:
     """
-    Заменяет приватный метод _Dispatcher__get_memory_context на собственную версию,
+    Заменяет приватный метод _Dispatcher__get_context на собственную версию,
     возвращающую экземпляр RedisContext вместо MemoryContext.
     Это позволяет сохранять состояния FSM в Redis между перезапусками бота.
     """
@@ -274,24 +274,20 @@ def _patch_dispatcher(dispatcher: Dispatcher) -> None:
         dispatcher.contexts = {}
     contexts = dispatcher.contexts
 
-    def new_get_memory_context(chat_id: int, user_id: int) -> MemoryContext:
-        # Ключ для словаря — кортеж (chat_id, user_id)
+    def new_get_context(chat_id: int, user_id: int) -> MemoryContext:
         key = (chat_id, user_id)
-        logger.info(f"new_get_memory_context: chat={chat_id}, user={user_id}, key in contexts? {key in contexts}")
-        # Поиск существующего контекста в словаре
+        logger.debug(f"new_get_context: chat={chat_id}, user={user_id}, exists={key in contexts}")
         if key in contexts:
             ctx = contexts[key]
-            logger.info(f"  -> returning existing context of type {type(ctx).__name__}")
-            logger.debug(f"Использован существующий контекст для {chat_id}:{user_id}")
+            logger.debug(f"  -> returning existing {type(ctx).__name__}")
             return cast(MemoryContext, ctx)
-        # Создаём новый RedisContext и добавляем в словарь
         new_ctx = RedisContext(chat_id, user_id)
         contexts[key] = new_ctx
-        logger.info(f"  -> создан новый {type(new_ctx).__name__} для {chat_id}:{user_id}")
+        logger.debug(f"  -> created new RedisContext for {chat_id}:{user_id}")
         return new_ctx
 
-    # Monkey-patch приватного метода
-    dispatcher._Dispatcher__get_memory_context = new_get_memory_context
+    # Подмена правильного метода
+    dispatcher._Dispatcher__get_context = new_get_context
     logger.info("✅ Диспетчер переведён на Redis-хранилище FSM")
 
 
