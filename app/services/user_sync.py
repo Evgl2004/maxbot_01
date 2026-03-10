@@ -166,4 +166,5 @@ async def sync_user_with_iiko(
     if is_callback:
         await event.answer("")
 
+    logger.info(f"sync_user_with_iiko успешно завершена для пользователя {user.id}, возвращаем True")
     return True
