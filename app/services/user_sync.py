@@ -85,7 +85,7 @@ async def sync_user_with_iiko(
                     text=text,
                     attachments=[retry_keyboard()]
                 )
-                await bot.answer_callback(event.callback_id, "")
+                await event.answer("")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return False
@@ -164,6 +164,6 @@ async def sync_user_with_iiko(
 
     # Если событие было callback, отвечаем на него (убираем "часики")
     if is_callback:
-        await bot.answer_callback(event.callback_id, "")
+        await event.answer("")
 
     return True
