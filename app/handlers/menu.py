@@ -443,7 +443,7 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
     ticket = await ticket_service.create_ticket(
         user_id=event.from_user.user_id,
         message=event.message.body.text,
-        user_username=event.from_user.name,          # в MAX это поле может содержать username
+        user_username=event.from_user.username or event.from_user.first_name,
         user_first_name=event.from_user.first_name or user.first_name_input
     )
 
