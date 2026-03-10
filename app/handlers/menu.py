@@ -76,6 +76,8 @@ async def process_balance(event: MessageCallback) -> None:
     из iiko по номеру телефона, сохранённому в БД, и отображает текущий баланс.
     Если номер телефона не указан или информация недоступна, выводит сообщение об ошибке.
     """
+    logger.info(f"process_balance: сообщение отредактировано для user {event.from_user.user_id}")
+
     bot = event.bot
     await event.answer("")  # убираем "часики" на кнопке
 
@@ -88,6 +90,8 @@ async def process_balance(event: MessageCallback) -> None:
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
+        logger.info(f"process_balance: отправлено сообщение об ошибке (нет телефона) "
+                    f"для user {event.from_user.user_id}")
         return
 
     # Запрашиваем информацию о клиенте из iiko
@@ -102,6 +106,9 @@ async def process_balance(event: MessageCallback) -> None:
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
+        logger.info(
+            f"process_balance: отправлено сообщение об ошибке (iiko недоступен) "
+            f"для user {event.from_user.user_id}")
         return
 
     balance = client_info.get('balance', 0)
@@ -119,6 +126,7 @@ async def process_balance(event: MessageCallback) -> None:
         attachments=[get_back_to_main_keyboard()],
         parse_mode=ParseMode.MARKDOWN
     )
+    logger.info(f"process_balance: баланс успешно отправлен для user {event.from_user.user_id}")
 
 
 @router.message_callback(Command('virtual_card'))
@@ -131,6 +139,9 @@ async def process_virtual_card(event: MessageCallback) -> None:
     После получения списка карт удаляет текущее сообщение с кнопкой,
     отправляет по одному QR-коду для каждой карты, а затем выводит итоговое сообщение.
     """
+
+    logger.info(f"process_virtual_card: сообщение отредактировано для user {event.from_user.user_id}")
+
     bot = event.bot
     await event.answer("")
 
@@ -142,6 +153,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
             text=text,
             attachments=[get_back_to_main_keyboard()]
         )
+        logger.info(f"process_virtual_card: ошибка (нет телефона) для user {event.from_user.user_id}")
         return
 
     phone = user.phone_number
@@ -157,6 +169,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
                 text=text,
                 attachments=[retry_keyboard()]
             )
+            logger.info(f"process_virtual_card: ошибка регистрации клиента для user {event.from_user.user_id}")
             return
         client_info = {'customer_id': customer_id, 'cards': []}
     else:
@@ -170,6 +183,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
                 text=text,
                 attachments=[retry_keyboard()]
             )
+            logger.info(f"process_virtual_card: ошибка обновления клиента для user {event.from_user.user_id}")
             return
         client_info['customer_id'] = customer_id
 
@@ -186,6 +200,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
                 text=text,
                 attachments=[retry_keyboard()]
             )
+            logger.info(f"process_virtual_card: ошибка выпуска карты для user {event.from_user.user_id}")
             return
         # После выпуска обновляем информацию о клиенте
         client_info = await iiko_service.get_customer_info(phone)
@@ -219,6 +234,8 @@ async def process_virtual_card(event: MessageCallback) -> None:
             text=caption,
             attachments=[media]
         )
+        logger.info(f"process_virtual_card: отправлен QR для карты {card_number} "
+                    f"пользователю {event.from_user.user_id}")
 
         os.unlink(tmp_path)  # удаляем временный файл
 
@@ -241,6 +258,7 @@ async def process_virtual_card(event: MessageCallback) -> None:
         text=final_text,
         attachments=[get_back_to_main_keyboard()]
     )
+    logger.info(f"process_virtual_card: финальное сообщение отправлено для user {event.from_user.user_id}")
 
 
 @router.message_callback(Command('support'))
@@ -250,6 +268,9 @@ async def process_support(event: MessageCallback) -> None:
 
     Если у пользователя есть открытые тикеты, добавляется кнопка «📋 Мои обращения».
     """
+
+    logger.info(f"process_support: сообщение отредактировано для user {event.from_user.user_id}")
+
     bot = event.bot
     await event.answer("")
 
@@ -264,6 +285,7 @@ async def process_support(event: MessageCallback) -> None:
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)],
         parse_mode=ParseMode.MARKDOWN
     )
+    logger.info(f"process_support: меню отдела заботы отправлено для user {event.from_user.user_id}")
 
 
 @router.message_callback(Command('vacancies'))
@@ -271,6 +293,9 @@ async def process_vacancies(event: MessageCallback) -> None:
     """
     Показывает информацию о вакансиях и ссылку на сайт с вакансиями.
     """
+
+    logger.info(f"process_vacancies: сообщение отредактировано для user {event.from_user.user_id}")
+
     bot = event.bot
     await event.answer("")
 
@@ -293,6 +318,7 @@ async def process_vacancies(event: MessageCallback) -> None:
         attachments=[get_back_to_main_keyboard()],
         parse_mode=ParseMode.MARKDOWN
     )
+    logger.info(f"process_vacancies: информация о вакансиях отправлена для user {event.from_user.user_id}")
 
 
 # ---------- Обработчики подменю отдела заботы ----------
@@ -441,6 +467,9 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
     Удаляет текущее сообщение и отправляет новое с главным меню.
     При необходимости очищает состояние FSM.
     """
+
+    logger.info(f"process_back_to_main: сообщение отредактировано для user {event.from_user.user_id}")
+
     if context:
         await context.clear()
 
@@ -449,7 +478,11 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
 
     user = await db.get_user(event.from_user.user_id)
     if not user:
-        await bot.answer_callback(event.callback_id, "Пользователь не найден")
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Пользователь не найден"
+        )
+        logger.info(f"process_back_to_main: пользователь не найден для {event.from_user.user_id}")
         return
 
     name = user.first_name_input or "Гость"
@@ -460,6 +493,7 @@ async def process_back_to_main(event: MessageCallback, context: MemoryContext) -
         text=text,
         attachments=[get_main_menu_keyboard()]
     )
+    logger.info(f"process_back_to_main: главное меню отправлено для user {event.from_user.user_id}")
 
 
 @router.message_callback(Command('back_to_support'))
@@ -468,6 +502,9 @@ async def process_back_to_support(event: MessageCallback, context: MemoryContext
     Возврат во вложенное меню отдела заботы.
     При необходимости очищает состояние FSM.
     """
+
+    logger.info(f"process_back_to_support: сообщение отредактировано для user {event.from_user.user_id}")
+
     if context:
         await context.clear()
 
@@ -485,3 +522,4 @@ async def process_back_to_support(event: MessageCallback, context: MemoryContext
         attachments=[get_support_submenu_keyboard(has_tickets=has_tickets)],
         parse_mode=ParseMode.MARKDOWN
     )
+    logger.info(f"process_back_to_support: меню отдела заботы отправлено для user {event.from_user.user_id}")
