@@ -56,14 +56,23 @@ async def start_command(event: MessageCreated, context: MemoryContext) -> None:
 
     # Регистрация не завершена
     if not db_user.is_registered:
-        await event.message.answer(
-            text=(
-                "📱 Чтобы подключиться к программе лояльности, нажми кнопку «Поделиться контактом».\n"
-                "После этого мы будем знакомы чуть ближе."
-            ),
-            attachments=[get_contact_keyboard()]
-        )
-        await context.set_state(Registration.waiting_for_contact)
+        current_state = await context.get_state()
+        if current_state is None:
+            # Начинаем регистрацию с запроса контакта
+            await context.set_state(Registration.waiting_for_contact)
+            await event.message.answer(
+                text=(
+                    "📱 Чтобы подключиться к программе лояльности, нажми кнопку «Поделиться контактом».\n"
+                    "После этого мы будем знакомы чуть ближе."
+                ),
+                attachments=[get_contact_keyboard()]
+            )
+        else:
+            # У пользователя уже есть активное состояние – просто продолжаем
+            await event.message.answer(
+                text="👋 Вы уже в процессе регистрации. Пожалуйста, завершите её, следуя инструкциям.",
+                attachments=[]
+            )
         return
 
     # Всё готово – главное меню
