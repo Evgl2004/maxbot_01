@@ -20,9 +20,10 @@
 from loguru import logger
 
 from maxapi import Router
-from maxapi.types import MessageCreated, MessageCallback, Command
+from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
 from maxapi.enums.parse_mode import ParseMode
+from maxapi import F
 
 from app.database import db
 from app.database.models import Ticket
@@ -37,7 +38,7 @@ router = Router()
 
 
 # ---------- Список обращений (первая страница) ----------
-@router.message_callback(Command('my_tickets'))
+@router.message_callback(F.callback.payload == 'my_tickets')
 async def user_tickets_list(event: MessageCallback) -> None:
     """
     Показывает первую страницу списка тикетов текущего пользователя.
@@ -83,7 +84,7 @@ async def user_tickets_list(event: MessageCallback) -> None:
 
 
 # ---------- Переключение страниц ----------
-@router.message_callback(Command('user_tickets_page_'))
+@router.message_callback(F.callback.payload.startswith('user_tickets_page_'))
 async def user_tickets_page(event: MessageCallback) -> None:
     """
     Обработчик переключения страниц списка тикетов пользователя.
@@ -131,7 +132,7 @@ async def user_tickets_page(event: MessageCallback) -> None:
 
 
 # ---------- Детали тикета ----------
-@router.message_callback(Command('user_ticket_'))
+@router.message_callback(F.callback.payload.startswith('user_ticket_'))
 async def user_ticket_details(event: MessageCallback) -> None:
     """
     Показывает детали тикета для пользователя.
@@ -168,7 +169,7 @@ async def user_ticket_details(event: MessageCallback) -> None:
 
 
 # ---------- Начало ответа на тикет ----------
-@router.message_callback(Command('user_reply_'))
+@router.message_callback(F.callback.payload.startswith('user_reply_'))
 async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
     """
     Начало ответа на тикет – устанавливает состояние ожидания ответа.
@@ -213,7 +214,7 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
     await event.answer("")
 
 
-@router.message_callback(Command('user_cancel_reply_'))
+@router.message_callback(F.callback.payload.startswith('user_cancel_reply_'))
 async def user_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена ответа на тикет пользователем: очищает состояние и показывает детали тикета.
