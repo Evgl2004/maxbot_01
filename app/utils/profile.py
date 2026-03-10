@@ -63,13 +63,15 @@ async def show_profile_review(
             parse_mode=ParseMode.MARKDOWN
         )
     else:
-        await bot.edit_message(
-            message_id=event.message.body.mid,
+        # Удаляем старое сообщение с кнопками выбора пола
+        await bot.delete_message(event.message.body.mid)
+        # Отправляем новое сообщение с анкетой
+        await bot.send_message(
+            chat_id=event.message.chat.chat_id,
             text=text,
             attachments=[get_review_keyboard()],
             parse_mode=ParseMode.MARKDOWN
         )
         await event.answer("")
-
     if target_state:
         await context.set_state(target_state)
