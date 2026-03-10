@@ -614,3 +614,11 @@ async def retry_iiko_registration(event: MessageCallback, context: MemoryContext
         await event.message.answer(text="❌ Ошибка загрузки пользователя")
         await context.clear()
         return
+
+    success = await sync_user_with_iiko(event, user)
+    logger.info(f"sync_user_with_iiko в retry вернула {success} для пользователя {user.id}")
+    if success:
+        await context.clear()
+        logger.info(f"Контекст очищен для пользователя {user.id} после повторной попытки")
+    else:
+        logger.warning(f"sync_user_with_iiko в retry не удалась, контекст не очищен")
