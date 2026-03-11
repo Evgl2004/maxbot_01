@@ -601,7 +601,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
     # Уведомляем пользователя
     try:
         await bot.send_message(
-            chat_id=ticket.user_id,
+            user_id=ticket.user_id,
             text=(
                 f"📬 <b>Ответ на ваш вопрос</b> (тикет #{ticket_id})\n\n"
                 f"📝 <b>Ответ от модератора:</b>\n"

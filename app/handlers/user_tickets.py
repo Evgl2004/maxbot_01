@@ -178,13 +178,20 @@ async def user_ticket_details(event: MessageCallback) -> None:
 
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    # Сначала отвечаем на callback
+    await event.answer("")
+
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+
+    # Отправляем новое сообщение с клавиатурой
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=ticket_text,
         attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)],
         parse_mode=ParseMode.HTML
     )
-    await event.answer("")
+    logger.info("user_ticket_details: сообщение отправлено")
 
 
 # ---------- Начало ответа на тикет ----------
