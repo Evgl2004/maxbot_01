@@ -372,6 +372,16 @@ async def process_review_edit(event: MessageCallback, context: MemoryContext) ->
         return
 
     await event.answer("")
+
+    # Убираем клавиатуру – редактируем сообщение, оставляя текст без вложений
+    await event.bot.edit_message(
+        message_id=event.message.body.mid,
+        text=event.message.body.text,
+        attachments=[]  # пустой список удаляет клавиатуру
+    )
+
+    # Отправляем новое сообщение с клавиатурой выбора поля
+
     text = "🔧 Выберите, что хотите исправить:"
     await event.bot.edit_message(
         message_id=event.message.body.mid,
