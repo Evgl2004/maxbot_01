@@ -31,6 +31,8 @@ from maxapi import Router, Bot
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
 
+from maxapi.enums.parse_mode import ParseMode
+
 from app.database import db
 from app.keyboards.registration import (
     get_rules_keyboard,
@@ -567,6 +569,10 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     )
 
     user = await db.get_user(user_id)
+
+    # Удаляем исходное сообщение с кнопками уведомлений
+    await event.bot.delete_message(event.message.body.mid)
+
     if not user:
         await event.message.answer(text="❌ Ошибка загрузки пользователя")
         await context.clear()
@@ -577,6 +583,20 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     success = await sync_user_with_iiko(event, user)
     if success:
         await context.clear()
+        # Отправляем приветственное сообщение с инструкцией
+        await event.bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text=(
+                "🎉 *Актуализация данных успешно завершена!*\n\n"
+                "Теперь вы можете пользоваться ботом.\n\n"
+                "💡 *Как пользоваться:*\n"
+                "• Нажмите на кнопки под сообщением для навигации по меню.\n"
+                "• Или введите символ `/` в поле ввода, чтобы увидеть список доступных команд.\n"
+                "• Команда `/start` всегда возвращает вас в главное главное меню.\n\n"
+                "Приятного использования!"
+            ),
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 
 @router.message_callback(LegacyUpgrade.waiting_for_iiko_registration)
