@@ -11,7 +11,7 @@
 
 Все хендлеры используют корректные методы maxapi:
 - Текст сообщения: event.message.body.text
-- Редактирование: event.bot.edit_message
+- Редактирование: event.bot.edit_message (заменено на delete_message + send_message для надёжности)
 - Отправка клавиатур: attachments=[keyboard]
 - Работа с FSM: context (MemoryContext) передаётся вторым параметром
 - Проверка прав модератора через is_moderator
@@ -140,6 +140,9 @@ async def mod_main_callback(event: MessageCallback) -> None:
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     bot = event.bot
     open_count, in_progress_count, avg_response_time = await ticket_service.get_tickets_stats()
     stats_text = (
@@ -152,13 +155,17 @@ async def mod_main_callback(event: MessageCallback) -> None:
     else:
         stats_text += "⏱ Среднее время ответа: -\n"
 
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    logger.info("mod_main_callback: отправляем главное меню модератора")
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=stats_text,
         attachments=[ModerationKeyboard.main_menu()],
         parse_mode=ParseMode.MARKDOWN
     )
-    await event.answer("")
+    logger.info("mod_main_callback: сообщение отправлено")
 
 
 # ---------- Список тикетов ----------
@@ -172,27 +179,40 @@ async def mod_tickets_list(event: MessageCallback) -> None:
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     bot = event.bot
     tickets, total_count = await ticket_service.get_tickets_page(page=1, per_page=10)
     total_pages = (total_count + 10 - 1) // 10
 
     if not tickets:
         text = "📭 Нет тикетов"
-        await bot.edit_message(
-            message_id=event.message.body.mid,
+        # Удаляем старое сообщение
+        await bot.delete_message(event.message.body.mid)
+        # Отправляем новое
+        logger.info("mod_tickets_list: отправляем сообщение об отсутствии тикетов")
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
             text=text,
             attachments=[ModerationKeyboard.main_menu()]
         )
-        await event.answer("")
+        logger.info("mod_tickets_list: сообщение отправлено")
         return
 
     text = f"📋 Все тикеты (страница 1/{total_pages}):"
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    keyboard = ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)
+
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    logger.info(f"mod_tickets_list: отправляем сообщение с {len(tickets)} тикетами")
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=text,
-        attachments=[ModerationKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
+        attachments=[keyboard]
     )
-    await event.answer("")
+    logger.info("mod_tickets_list: сообщение отправлено")
 
 
 @router.message_callback(F.callback.payload == 'mod_tickets_all')
@@ -208,15 +228,25 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
         event (MessageCallback): событие нажатия на callback-кнопку
         context (MemoryContext): контекст FSM для сохранения данных
     """
+    logger.info(f"mod_tickets_filtered: вызван для user {event.from_user.user_id}, payload={event.callback.payload}")
+
     if not await is_moderator(event.from_user.user_id):
         await event.answer("❌ У вас нет прав модератора")
         return
+
+    # Сначала отвечаем на callback
+    await event.answer("")
 
     bot = event.bot
     # Извлекаем фильтр из payload (например, "mod_tickets_all" -> "all")
     filter_key = event.callback.payload.split('_')[-1]
     if filter_key not in FILTER_STATUS_MAP:
-        await event.answer("❌ Неизвестный фильтр")
+        # Вместо ответа на callback отправляем сообщение об ошибке
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неизвестный фильтр"
+        )
         return
 
     # Сохраняем текущий фильтр в контексте (для возврата из деталей тикета)
@@ -228,30 +258,41 @@ async def mod_tickets_filtered(event: MessageCallback, context: MemoryContext) -
         per_page=10,
         statuses=statuses
     )
+    logger.info(f"mod_tickets_filtered: получено {len(tickets)} тикетов, всего {total_count}")
     total_pages = (total_count + 10 - 1) // 10
 
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют."
-        await bot.edit_message(
-            message_id=event.message.body.mid,
+        # Удаляем старое сообщение
+        await bot.delete_message(event.message.body.mid)
+        # Отправляем новое
+        logger.info(f"mod_tickets_filtered: отправляем сообщение об отсутствии тикетов")
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
         )
-        await event.answer("")
+        logger.info("mod_tickets_filtered: сообщение отправлено")
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница 1/{total_pages}):"
-    await bot.edit_message(
-        message_id=event.message.body.mid,
-        text=text,
-        attachments=[ModerationKeyboard.tickets_list(
-            tickets,
-            current_page=1,
-            total_pages=total_pages,
-            filter_key=filter_key
-        )]
+    keyboard = ModerationKeyboard.tickets_list(
+        tickets,
+        current_page=1,
+        total_pages=total_pages,
+        filter_key=filter_key
     )
-    await event.answer("")
+
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    logger.info(f"mod_tickets_filtered: отправляем сообщение с {len(tickets)} тикетами")
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
+        text=text,
+        attachments=[keyboard]
+    )
+    logger.info("mod_tickets_filtered: сообщение отправлено")
 
 
 @router.message_callback(F.callback.payload == 'mod_tickets_page_all')
@@ -271,21 +312,36 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     bot = event.bot
     parts = event.callback.payload.split('_')
     if len(parts) != 5:
-        await event.answer("❌ Неверный формат данных")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неверный формат данных"
+        )
         return
 
     filter_key = parts[3]
     try:
         page = int(parts[4])
     except ValueError:
-        await event.answer("❌ Ошибка в номере страницы")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Ошибка в номере страницы"
+        )
         return
 
     if filter_key not in FILTER_STATUS_MAP:
-        await event.answer("❌ Неизвестный фильтр")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неизвестный фильтр"
+        )
         return
 
     await context.update_data(current_ticket_filter=filter_key)
@@ -300,26 +356,28 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
 
     if not tickets:
         text = f"📭 {FILTER_TITLES[filter_key]} отсутствуют на странице {page}."
-        await bot.edit_message(
-            message_id=event.message.body.mid,
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
             text=text,
             attachments=[ModerationKeyboard.back_to_main()]
         )
-        await event.answer("")
         return
 
     text = f"📋 {FILTER_TITLES[filter_key]} (страница {page}/{total_pages}):"
-    await bot.edit_message(
-        message_id=event.message.body.mid,
-        text=text,
-        attachments=[ModerationKeyboard.tickets_list(
-            tickets,
-            current_page=page,
-            total_pages=total_pages,
-            filter_key=filter_key
-        )]
+    keyboard = ModerationKeyboard.tickets_list(
+        tickets,
+        current_page=page,
+        total_pages=total_pages,
+        filter_key=filter_key
     )
-    await event.answer("")
+
+    await bot.delete_message(event.message.body.mid)
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
+        text=text,
+        attachments=[keyboard]
+    )
 
 
 # ---------- Детали тикета ----------
@@ -338,12 +396,19 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     bot = event.bot
     ticket_id_str = event.callback.payload.replace('mod_ticket_', '')
     try:
         ticket_id = int(ticket_id_str)
     except ValueError:
-        await event.answer("❌ Неверный формат")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неверный формат"
+        )
         return
 
     context_data = await context.get_data()
@@ -351,19 +416,27 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await event.answer("❌ Тикет не найден")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Тикет не найден"
+        )
         return
 
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    logger.info(f"mod_ticket_details: отправляем детали тикета #{ticket_id}")
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, back_filter)],
         parse_mode=ParseMode.HTML
     )
-    await event.answer("")
+    logger.info("mod_ticket_details: сообщение отправлено")
 
 
 @router.message_callback(F.callback.payload == 'mod_cancel_reply_')
@@ -375,11 +448,18 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     ticket_id_str = event.callback.payload.replace('mod_cancel_reply_', '')
     try:
         ticket_id = int(ticket_id_str)
     except ValueError:
-        await event.answer("❌ Неверный формат")
+        await event.bot.delete_message(event.message.body.mid)
+        await event.bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неверный формат"
+        )
         return
 
     # Очищаем контекст, чтобы выйти из состояния ожидания ответа
@@ -389,20 +469,25 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
     bot = event.bot
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await event.answer("❌ Тикет не найден")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Тикет не найден"
+        )
         return
 
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    # Используем FILTER_ALL как значение по умолчанию для кнопки "Назад"
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status, FILTER_ALL)],
         parse_mode=ParseMode.HTML
     )
-    await event.answer("")
 
 
 # ---------- Ответ на тикет ----------
@@ -421,17 +506,28 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
         await event.answer("❌ У вас нет прав модератора")
         return
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     bot = event.bot
     ticket_id_str = event.callback.payload.replace('mod_reply_', '')
     try:
         ticket_id = int(ticket_id_str)
     except ValueError:
-        await event.answer("❌ Неверный формат")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Неверный формат"
+        )
         return
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
-        await event.answer("❌ Тикет не найден")
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text="❌ Тикет не найден"
+        )
         return
 
     await context.update_data(reply_ticket_id=ticket_id)
@@ -442,13 +538,16 @@ async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) ->
         f"Введите ваш ответ пользователю:\n"
         f"(Поддерживается HTML форматирование)"
     )
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=text,
         attachments=[ModerationKeyboard.reply_to_ticket(ticket_id)],
         parse_mode=ParseMode.MARKDOWN
     )
-    await event.answer("")
 
 
 @router.message_created(TicketStates.waiting_for_moderator_reply)
@@ -553,13 +652,15 @@ async def mod_close_ticket(event: MessageCallback) -> None:
         await event.answer("❌ Тикет не найден")
         return
 
-    await event.answer("✅ Тикет закрыт")
+    # Ответ на callback уже дан выше, поэтому дополнительный ответ не нужен
+    # await event.answer("✅ Тикет закрыт")  # уже есть
 
     ticket = await ticket_service.get_ticket(ticket_id)
     if not ticket:
         text = "❌ Ошибка при загрузке тикета"
-        await bot.edit_message(
-            message_id=event.message.body.mid,
+        await bot.delete_message(event.message.body.mid)
+        await bot.send_message(
+            chat_id=event.message.recipient.chat_id,
             text=text
         )
         return
@@ -567,8 +668,11 @@ async def mod_close_ticket(event: MessageCallback) -> None:
     messages = await ticket_service.get_ticket_messages(ticket_id)
     ticket_text = format_ticket_details(ticket, messages)
 
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+    # Удаляем старое сообщение
+    await bot.delete_message(event.message.body.mid)
+    # Отправляем новое
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=ticket_text,
         attachments=[ModerationKeyboard.ticket_details(ticket_id, ticket.status)],
         parse_mode=ParseMode.HTML

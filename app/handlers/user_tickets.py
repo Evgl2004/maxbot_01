@@ -181,7 +181,8 @@ async def user_ticket_details(event: MessageCallback) -> None:
     await bot.edit_message(
         message_id=event.message.body.mid,
         text=ticket_text,
-        attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)]
+        attachments=[UserTicketsKeyboard.ticket_details(ticket_id, ticket.status)],
+        parse_mode=ParseMode.HTML
     )
     await event.answer("")
 
