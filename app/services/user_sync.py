@@ -113,7 +113,6 @@ async def sync_user_with_iiko(
                     attachments=[retry_keyboard()]
                 )
                 await event.answer("")
-                await event.answer("")
             else:
                 await bot.send_message(chat_id=chat_id, text=text, attachments=[retry_keyboard()])
             return False
@@ -176,10 +175,6 @@ async def sync_user_with_iiko(
         bot=bot,
         user_name=user.first_name_input or "Гость"
     )
-
-    # Если событие было callback, отвечаем на него (убираем "часики")
-    if is_callback:
-        await event.answer("")
 
     logger.info(f"sync_user_with_iiko успешно завершена для пользователя {user.id}, возвращаем True")
     return True
