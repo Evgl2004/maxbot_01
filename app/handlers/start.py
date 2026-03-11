@@ -52,12 +52,18 @@ async def _handle_start_logic(user_id: int, chat_id: int, bot, context: MemoryCo
     if not db_user.rules_accepted:
         current_state = await context.get_state()
         logger.info(f"Правила не приняты, текущее состояние: {current_state}")
+        # Если состояние существует и это не waiting_for_rules_consent, сбрасываем его
+        if current_state is not None and current_state != Registration.waiting_for_rules_consent:
+            logger.info(f"Обнаружено неожиданное состояние {current_state} при непринятых правилах, сбрасываем")
+            await context.set_state(None)
+            current_state = None
         if current_state is None:
             await context.set_state(Registration.waiting_for_rules_consent)
             text, keyboard = get_prompt_for_state(Registration.waiting_for_rules_consent, context)
             await bot.send_message(chat_id=chat_id, text=text, attachments=[keyboard] if keyboard else [])
             logger.info("Установлено состояние waiting_for_rules_consent")
         else:
+            # здесь current_state обязательно waiting_for_rules_consent
             text, keyboard = get_prompt_for_state(current_state, context)
             if text == "__SHOW_PROFILE_REVIEW__":
                 await show_profile_review_by_ids(bot, chat_id, user_id, context, target_state=None)
