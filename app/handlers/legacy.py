@@ -368,27 +368,42 @@ async def process_review_edit(event: MessageCallback, context: MemoryContext) ->
     """
     Пользователь хочет что-то изменить. Показываем меню выбора поля для редактирования.
     """
+
+    # Логируем вход в обработчик
+    logger.info(f"=== process_review_edit: вызван, payload={event.callback.payload}, user_id={event.from_user.user_id}")
+
+    # Проверка payload
     if event.callback.payload != "review_edit":
+        logger.info(f"=== process_review_edit: payload не совпадает (ожидалось review_edit), выход")
         return
 
+    # Ответ на callback
     await event.answer("")
+    logger.info("=== process_review_edit: ответ на callback отправлен")
 
-    # Убираем клавиатуру – редактируем сообщение, оставляя текст без вложений
-    await event.bot.edit_message(
-        message_id=event.message.body.mid,
-        text=event.message.body.text,
-        attachments=[]  # пустой список удаляет клавиатуру
-    )
-
-    # Отправляем новое сообщение с клавиатурой выбора поля
-
+    # Текст для нового сообщения
     text = "🔧 Выберите, что хотите исправить:"
+    logger.info(f"=== process_review_edit: текст сообщения = '{text}'")
+
+    # Получаем клавиатуру
+    keyboard = get_edit_choice_keyboard()
+    logger.info(f"=== process_review_edit: клавиатура получена, тип={type(keyboard).__name__}")
+
+    # Пытаемся отредактировать текущее сообщение (замена текста и добавление клавиатуры)
+    logger.info(f"=== process_review_edit: вызываем edit_message, message_id={event.message.body.mid}")
     await event.bot.edit_message(
         message_id=event.message.body.mid,
         text=text,
-        attachments=[get_edit_choice_keyboard()]
+        attachments=[keyboard]
     )
+    logger.info("=== process_review_edit: edit_message выполнен")
+
+    # Устанавливаем новое состояние
     await context.set_state(LegacyUpgrade.waiting_for_edit_choice)
+    logger.info(f"=== process_review_edit: состояние установлено на {LegacyUpgrade.waiting_for_edit_choice}")
+
+    # Завершение
+    logger.info("=== process_review_edit: обработка завершена")
 
 
 @router.message_callback(LegacyUpgrade.waiting_for_edit_choice)
