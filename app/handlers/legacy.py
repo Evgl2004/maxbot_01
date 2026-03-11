@@ -44,7 +44,7 @@ from app.utils.validation import (
     validate_email,
     clean_name,
 )
-from app.utils.profile import show_profile_review
+from app.utils.profile import show_profile_review, show_profile_review_by_ids
 from app.services.user_sync import sync_user_with_iiko
 
 from app.utils.fsm_helpers import get_prompt_for_state
@@ -159,28 +159,34 @@ async def ask_next_field(event: Union[MessageCreated, MessageCallback],
 
 
 # ---------- Начало обновления ----------
-async def start_legacy_upgrade(event: MessageCreated, user, context: MemoryContext):
+async def start_legacy_upgrade(
+    bot: Bot,
+    chat_id: int,
+    user,
+    context: MemoryContext
+) -> None:
     """
     Запускает процесс обновления для устаревшего пользователя.
-    Вызывается из start.py, когда обнаружен пользователь с is_legacy=True.
+    Вызывается из start.py (или _handle_start_logic), когда обнаружен пользователь с is_legacy=True.
 
     Args:
-        event (MessageCreated): событие, инициировавшее старт
-        user: объект пользователя из БД
-        context (MemoryContext): контекст FSM для управления состоянием
+        bot (Bot): экземпляр бота для отправки сообщений.
+        chat_id (int): ID чата, куда отправлять сообщения.
+        user: объект пользователя из БД.
+        context (MemoryContext): контекст FSM для управления состоянием.
     """
     logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.user_id} (is_legacy={user.is_legacy})")
-    bot = event.bot
 
     current_state = await context.get_state()
     if current_state is not None:
         # Если состояние уже есть – отправляем запрос, соответствующий шагу
         text, keyboard = get_prompt_for_state(current_state, context)
         if text == "__SHOW_PROFILE_REVIEW__":
-            await show_profile_review(event, context, target_state=None)
+            # Используем новую функцию без event
+            await show_profile_review_by_ids(bot, chat_id, user.user_id, context, target_state=None)
         else:
             await bot.send_message(
-                chat_id=event.chat.chat_id,
+                chat_id=chat_id,
                 text=text,
                 attachments=[keyboard] if keyboard else []
             )
@@ -192,10 +198,10 @@ async def start_legacy_upgrade(event: MessageCreated, user, context: MemoryConte
         "что твои данные актуальны, а также получить необходимые согласия. "
         "Это займёт всего пару минут."
     )
-    await bot.send_message(chat_id=event.chat.chat_id, text=text)
+    await bot.send_message(chat_id=chat_id, text=text)
 
     await bot.send_message(
-        chat_id=event.chat.chat_id,
+        chat_id=chat_id,
         text="📜 Для начала нам необходимо получить твоё согласие на обработку персональных данных "
              "и согласие с политикой конфиденциальности.\n\n"
              "👉 Ознакомься с документами по ссылке ниже и нажми «✅ Согласен».",
