@@ -25,6 +25,8 @@ from typing import List, Union
 
 from loguru import logger
 
+from maxapi import F
+
 from maxapi import Router, Bot
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
@@ -340,13 +342,11 @@ async def process_gender_input(event: MessageCallback, context: MemoryContext) -
     await ask_next_field(event, context, missing_fields)
 
 
-@router.message_callback(LegacyUpgrade.waiting_for_review)
+@router.message_callback(F.callback.payload == 'review_correct', LegacyUpgrade.waiting_for_review)
 async def process_review_correct(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь подтвердил, что данные верны. Переходим к согласию на уведомления.
     """
-    if event.callback.payload != "review_correct":
-        return
 
     await event.answer("")
     await event.bot.edit_message(
@@ -363,7 +363,7 @@ async def process_review_correct(event: MessageCallback, context: MemoryContext)
     await context.set_state(LegacyUpgrade.waiting_for_notifications_consent)
 
 
-@router.message_callback(LegacyUpgrade.waiting_for_review)
+@router.message_callback(F.callback.payload == 'review_edit', LegacyUpgrade.waiting_for_review)
 async def process_review_edit(event: MessageCallback, context: MemoryContext) -> None:
     """
     Пользователь хочет что-то изменить. Показываем меню выбора поля для редактирования.
@@ -371,11 +371,6 @@ async def process_review_edit(event: MessageCallback, context: MemoryContext) ->
 
     # Логируем вход в обработчик
     logger.info(f"=== process_review_edit: вызван, payload={event.callback.payload}, user_id={event.from_user.user_id}")
-
-    # Проверка payload
-    if event.callback.payload != "review_edit":
-        logger.info(f"=== process_review_edit: payload не совпадает (ожидалось review_edit), выход")
-        return
 
     # Ответ на callback
     await event.answer("")
