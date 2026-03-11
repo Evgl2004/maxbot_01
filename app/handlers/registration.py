@@ -572,11 +572,9 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     )
 
     await event.answer("")
-    await event.bot.edit_message(
-        message_id=event.message.body.mid,
-        text=event.message.body.text,
-        attachments=[]
-    )
+
+    # Удаляем исходное сообщение с кнопками уведомлений
+    await event.bot.delete_message(event.message.body.mid)
 
     user = await db.get_user(user_id)
     if not user:
