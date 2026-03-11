@@ -81,6 +81,9 @@ async def user_tickets_list(event: MessageCallback) -> None:
     text = f"📋 Ваши обращения (страница 1/{total_pages}):"
     logger.info(f"user_tickets_list: передаём в клавиатуру {len(tickets)} тикетов")
 
+    # Сначала отвечаем на callback
+    await event.answer("")
+
     # Удаляем старое сообщение
     await bot.delete_message(event.message.body.mid)
 
@@ -90,8 +93,6 @@ async def user_tickets_list(event: MessageCallback) -> None:
         text=text,
         attachments=[UserTicketsKeyboard.tickets_list(tickets, current_page=1, total_pages=total_pages)]
     )
-
-    await event.answer("")
 
 
 # ---------- Переключение страниц ----------
@@ -168,7 +169,13 @@ async def user_ticket_details(event: MessageCallback) -> None:
         await event.answer("❌ Тикет не найден или доступ запрещён")
         return
 
+    logger.info(f"user_ticket_details: статус тикета из БД: {ticket.status}")
+
     messages = await ticket_service.get_ticket_messages(ticket_id)
+
+    logger.info(f"user_ticket_details: получено {len(messages)} сообщений, "
+                f"тип первого: {type(messages[0]).__name__ if messages else 'None'}")
+
     ticket_text = format_ticket_details(ticket, messages)
 
     await bot.edit_message(

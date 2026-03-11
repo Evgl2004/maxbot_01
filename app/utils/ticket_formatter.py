@@ -2,6 +2,8 @@ import html
 from typing import List, Optional
 from app.database.models import Ticket, TicketMessage
 
+from loguru import logger
+
 
 def format_ticket_details(ticket: Ticket, messages: Optional[List[TicketMessage]] = None) -> str:
     """
@@ -16,6 +18,9 @@ def format_ticket_details(ticket: Ticket, messages: Optional[List[TicketMessage]
         str: отформатированное сообщение в HTML, готовое к отправке через event.message.answer
              или bot.send_message.
     """
+
+    logger.info(f"format_ticket_details: получено {len(messages) if messages else 0} сообщений для тикета #{ticket.id}")
+
     # Экранируем основные поля
     username = html.escape(ticket.user_username or ticket.user_first_name or f"ID:{ticket.user_id}")
     time_created = ticket.created_at.strftime("%d.%m.%Y %H:%M")
@@ -41,7 +46,8 @@ def format_ticket_details(ticket: Ticket, messages: Optional[List[TicketMessage]
     # История переписки
     if messages:
         details += "\n\n--- <b>Переписка</b> ---"
-        for msg in messages:
+        for i, msg in enumerate(messages):
+            logger.info(f"сообщение {i}: тип={type(msg).__name__}, sender_type={msg.sender_type}, текст={msg.message[:50]}")
             sender = "👤 <b>Пользователь</b>" if msg.sender_type == "user" else "👨‍💼 <b>Модератор</b>"
             time_msg = msg.created_at.strftime("%d.%m %H:%M")
             escaped_text = html.escape(msg.message)

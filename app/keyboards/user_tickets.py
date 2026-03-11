@@ -122,12 +122,18 @@ class UserTicketsKeyboard:
         Returns:
             InlineKeyboardMarkup: клавиатура.
         """
+
+        logger.info(f"ticket_details: создание клавиатуры для тикета {ticket_id}, статус='{status}'")
+
         builder = InlineKeyboardBuilder()
 
         if status != 'closed':
+            logger.info("ticket_details: статус не закрыт, добавляем кнопку Ответить")
             builder.row(
                 CallbackButton(text="📝 Ответить", payload=f"user_reply_{ticket_id}")
             )
+        else:
+            logger.info("ticket_details: статус закрыт, кнопка ответа не добавляется")
 
         builder.row(
             CallbackButton(text="🔙 Назад к списку", payload="my_tickets")

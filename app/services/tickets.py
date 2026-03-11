@@ -228,13 +228,21 @@ class TicketService:
         Returns:
             List[TicketMessage]: список сообщений.
         """
+
+        logger.info(f"get_ticket_messages: запрос для ticket_id={ticket_id}")
+
         async with db.session_maker() as session:
             result = await session.execute(
                 select(TicketMessage)
                 .where(TicketMessage.ticket_id == ticket_id)
                 .order_by(TicketMessage.created_at.asc())
             )
-            return result.scalars().all()
+
+            messages = result.scalars().all()
+
+            logger.info(f"get_ticket_messages: получено {len(messages)} сообщений")
+
+            return messages
 
     @staticmethod
     async def get_tickets_page(
