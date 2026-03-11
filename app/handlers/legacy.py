@@ -175,7 +175,7 @@ async def start_legacy_upgrade(
         user: объект пользователя из БД.
         context (MemoryContext): контекст FSM для управления состоянием.
     """
-    logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.user_id} (is_legacy={user.is_legacy})")
+    logger.info(f"Запуск обновления для устаревшего пользователя user_id={user.id} (is_legacy={user.is_legacy})")
 
     current_state = await context.get_state()
     if current_state is not None:
@@ -183,7 +183,7 @@ async def start_legacy_upgrade(
         text, keyboard = get_prompt_for_state(current_state, context)
         if text == "__SHOW_PROFILE_REVIEW__":
             # Используем новую функцию без event
-            await show_profile_review_by_ids(bot, chat_id, user.user_id, context, target_state=None)
+            await show_profile_review_by_ids(bot, chat_id, user.id, context, target_state=None)
         else:
             await bot.send_message(
                 chat_id=chat_id,
