@@ -138,6 +138,9 @@ class ModerationKeyboard:
         Returns:
             InlineKeyboardMarkup: клавиатура.
         """
+
+        logger.info(f"ticket_details: ticket_id={ticket_id}, status='{status}', back_filter='{back_filter}'")
+
         builder = InlineKeyboardBuilder()
 
         if status != 'closed':
@@ -147,6 +150,8 @@ class ModerationKeyboard:
             builder.row(
                 CallbackButton(text="🔒 Закрыть тикет", payload=f"mod_close_{ticket_id}")
             )
+        else:
+            logger.info("ticket_details: тикет закрыт, кнопки действий не добавляются")
 
         builder.row(
             CallbackButton(
