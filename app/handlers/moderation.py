@@ -381,7 +381,7 @@ async def mod_tickets_page_filtered(event: MessageCallback, context: MemoryConte
 
 
 # ---------- Детали тикета ----------
-@router.message_callback(F.callback.payload == 'mod_ticket_')
+@router.message_callback(F.callback.payload.startswith('mod_ticket_'))
 async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> None:
     """Показывает детальную информацию по тикету.
 
@@ -439,7 +439,7 @@ async def mod_ticket_details(event: MessageCallback, context: MemoryContext) -> 
     logger.info("mod_ticket_details: сообщение отправлено")
 
 
-@router.message_callback(F.callback.payload == 'mod_cancel_reply_')
+@router.message_callback(F.callback.payload.startswith('mod_cancel_reply_'))
 async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
     """
     Отмена ответа на тикет: очищает состояние и показывает детали тикета.
@@ -491,7 +491,7 @@ async def mod_cancel_reply(event: MessageCallback, context: MemoryContext) -> No
 
 
 # ---------- Ответ на тикет ----------
-@router.message_callback(F.callback.payload == 'mod_reply_')
+@router.message_callback(F.callback.payload.startswith('mod_reply_'))
 async def mod_reply_to_ticket(event: MessageCallback, context: MemoryContext) -> None:
     """Начало ответа на тикет – устанавливает состояние ожидания ответа.
 
@@ -628,7 +628,7 @@ async def mod_send_reply(event: MessageCreated, context: MemoryContext) -> None:
 
 
 # ---------- Закрытие тикета ----------
-@router.message_callback(F.callback.payload == 'mod_close_')
+@router.message_callback(F.callback.payload.startswith('mod_close_'))
 async def mod_close_ticket(event: MessageCallback) -> None:
     """Закрывает тикет (устанавливает статус 'closed').
 
