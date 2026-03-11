@@ -14,6 +14,8 @@
 from typing import List
 from datetime import datetime, timezone
 
+from loguru import logger
+
 from maxapi.types import CallbackButton
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
@@ -73,6 +75,9 @@ class ModerationKeyboard:
         Returns:
             InlineKeyboardMarkup: клавиатура.
         """
+
+        logger.info(f"tickets_list: получено {len(tickets)} тикетов, страница {current_page}/{total_pages}, фильтр {filter_key}")
+
         builder = InlineKeyboardBuilder()
 
         # Кнопки для каждого тикета
@@ -85,6 +90,7 @@ class ModerationKeyboard:
             username = ticket.user_username or ticket.user_first_name or f"ID:{ticket.user_id}"
             time_ago = ModerationKeyboard._format_time_ago(ticket.created_at)
             button_text = f"{status_emoji} #{ticket.id} от {username} ({time_ago})"
+            logger.debug(f"  тикет #{ticket.id}, статус {ticket.status}, текст кнопки: {button_text}")
             builder.row(
                 CallbackButton(text=button_text, payload=f"mod_ticket_{ticket.id}")
             )
