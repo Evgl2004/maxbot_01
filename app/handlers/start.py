@@ -15,7 +15,7 @@ from app.handlers.menu import show_main_menu
 from app.handlers.legacy import start_legacy_upgrade
 
 from app.utils.fsm_helpers import get_prompt_for_state
-from app.utils.profile import show_profile_review, show_profile_review_by_ids
+from app.utils.profile import show_profile_review_by_ids
 
 router = Router()
 

@@ -25,7 +25,7 @@ from typing import List, Union
 
 from loguru import logger
 
-from maxapi import Router
+from maxapi import Router, Bot
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
 
