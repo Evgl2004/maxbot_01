@@ -352,7 +352,7 @@ async def _notify_moderators_new_message(bot, ticket: Ticket, message_text: str)
         for moderator in moderators:
             try:
                 await bot.send_message(
-                    chat_id=moderator.id,
+                    user_id=moderator.id,
                     text=(
                         f"📬 <b>Новое сообщение от пользователя</b>\n\n"
                         f"🎫 Тикет #{ticket.id}\n"
