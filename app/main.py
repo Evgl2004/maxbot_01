@@ -20,6 +20,9 @@ from maxapi import Bot, Dispatcher
 
 from maxapi.context import MemoryContext
 
+from maxapi.types import BotCommand
+
+
 # Импортируем наши собственные модули (конфигурация, обработчики, база данных и т.д.)
 from app.config import settings                 # настройки, загруженные из .env
 from app.handlers import setup_routers          # функция, которая подключает все обработчики сообщений
@@ -151,6 +154,17 @@ async def on_startup(bot: Bot) -> None:
     bot_info = await bot.get_me()
     logger.info(f"🚀 Бот @{bot_info.username} успешно запущен!")
     logger.info(f"🏠 Окружение: {settings.env}")
+
+    # ------------------------------------------------------------
+    # 5. Установка команд бота для отображения в меню
+    # ------------------------------------------------------------
+    try:
+        await bot.set_my_commands(
+            BotCommand(name="/start", description="Главное меню"),
+        )
+        logger.info("✅ Команды бота успешно установлены")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при установке команд бота: {e}")
 
 
 async def on_shutdown(bot: Bot) -> None:
