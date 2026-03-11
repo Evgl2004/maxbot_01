@@ -490,6 +490,13 @@ async def process_question_text(event: MessageCreated, context: MemoryContext) -
 
     await context.clear()
 
+    # Возвращаем пользователя в главное меню
+    await show_main_menu(
+        chat_id=event.chat.chat_id,
+        bot=bot,
+        user_name=user.first_name_input or "Гость"
+    )
+
 
 @router.message_callback(F.callback.payload == 'support_contacts')
 async def process_contacts(event: MessageCallback) -> None:

@@ -31,6 +31,7 @@ from loguru import logger
 from maxapi import Router
 from maxapi.types import MessageCreated, MessageCallback
 from maxapi.context import MemoryContext
+from maxapi.enums.parse_mode import ParseMode
 
 from app.database import db
 from app.states.registration import Registration
@@ -590,6 +591,20 @@ async def process_notifications_consent(event: MessageCallback, context: MemoryC
     if success:
         await context.clear()
         logger.info(f"=== process_notifications_consent: контекст очищен для пользователя {user_id}")
+
+        await event.bot.send_message(
+            chat_id=event.message.recipient.chat_id,
+            text=(
+                "🎉 *Регистрация успешно завершена!*\n\n"
+                "Теперь вы можете пользоваться ботом.\n\n"
+                "💡 *Как пользоваться:*\n"
+                "• Нажмите на кнопки под сообщением для навигации по меню.\n"
+                "• Или введите символ `/` в поле ввода, чтобы увидеть список доступных команд.\n"
+                "• Команда `/start` всегда возвращает вас в главное главное меню.\n\n"
+                "Приятного использования!"
+            ),
+            parse_mode=ParseMode.MARKDOWN
+        )
     else:
         logger.warning(f"=== process_notifications_consent: sync_user_with_iiko не удалась, контекст не очищен")
 
