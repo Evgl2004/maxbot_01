@@ -202,10 +202,6 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
 
     Ожидает callback_data вида "user_reply_123". Проверяет, что тикет не закрыт,
     сохраняет его ID в контексте и переводит состояние в waiting_for_reply.
-
-    Args:
-        event (MessageCallback): событие нажатия на callback-кнопку.
-        context (MemoryContext): контекст FSM для сохранения данных и состояния.
     """
     bot = event.bot
     ticket_id_str = event.callback.payload.replace('user_reply_', '')
@@ -238,14 +234,16 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
     # Удаляем старое сообщение с деталями тикета и его клавиатурой
     await bot.delete_message(event.message.body.mid)
 
-    await bot.send_message(
+    # Отправляем новое сообщение с клавиатурой отмены
+    sent_message = await bot.send_message(
         chat_id=event.message.recipient.chat_id,
         text=text,
         attachments=[UserTicketsKeyboard.cancel_reply(ticket_id)],
         parse_mode=ParseMode.MARKDOWN
     )
 
-    await context.update_data(reply_prompt_message_id=event.message.body.mid)
+    # Сохраняем ID отправленного сообщения с кнопкой "Отмена" для последующего удаления
+    await context.update_data(reply_prompt_message_id=sent_message.message.body.mid)
 
 
 @router.message_callback(F.callback.payload.startswith('user_cancel_reply_'))
