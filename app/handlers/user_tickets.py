@@ -231,13 +231,19 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
         f"📝 *Ответ на тикет #{ticket_id}*\n\n"
         f"Введите ваш ответ:"
     )
-    await bot.edit_message(
-        message_id=event.message.body.mid,
+
+    # Сначала отвечаем на callback, чтобы убрать состояние загрузки
+    await event.answer("")
+
+    # Удаляем старое сообщение с деталями тикета и его клавиатурой
+    await bot.delete_message(event.message.body.mid)
+
+    await bot.send_message(
+        chat_id=event.message.recipient.chat_id,
         text=text,
         attachments=[UserTicketsKeyboard.cancel_reply(ticket_id)],
         parse_mode=ParseMode.MARKDOWN
     )
-    await event.answer("")
 
 
 @router.message_callback(F.callback.payload.startswith('user_cancel_reply_'))
