@@ -245,6 +245,8 @@ async def user_reply_to_ticket(event: MessageCallback, context: MemoryContext) -
         parse_mode=ParseMode.MARKDOWN
     )
 
+    await context.update_data(reply_prompt_message_id=event.message.body.mid)
+
 
 @router.message_callback(F.callback.payload.startswith('user_cancel_reply_'))
 async def user_cancel_reply(event: MessageCallback, context: MemoryContext) -> None:
@@ -321,6 +323,16 @@ async def user_send_reply(event: MessageCreated, context: MemoryContext) -> None
         sender_id=event.from_user.user_id,
         message=event.message.body.text
     )
+
+    # Удаляем предыдущее сообщение с кнопкой "Отмена"
+    context_data = await context.get_data()
+    prompt_msg_id = context_data.get('reply_prompt_message_id')
+    if prompt_msg_id:
+        try:
+            await bot.delete_message(prompt_msg_id)
+            logger.info(f"Удалено сообщение с подсказкой ответа {prompt_msg_id}")
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение с подсказкой: {e}")
 
     # Если тикет был открыт, переводим его в статус "в работе"
     if ticket.status == 'open':
