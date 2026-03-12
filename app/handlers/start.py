@@ -14,6 +14,9 @@ from app.states.registration import Registration
 from app.handlers.menu import show_main_menu
 from app.handlers.legacy import start_legacy_upgrade
 
+from app.states.registration import Registration
+from app.states.legacy import LegacyUpgrade
+
 from app.utils.fsm_helpers import get_prompt_for_state
 from app.utils.profile import show_profile_review_by_ids
 
@@ -93,13 +96,24 @@ async def _handle_start_logic(user_id: int, chat_id: int, bot, context: MemoryCo
         return
 
     # Всё готово – главное меню
-    logger.info("Всё готово, показываем главное меню")
-    await show_main_menu(
-        chat_id=chat_id,
-        bot=bot,
-        user_name=db_user.first_name_input or "Гость"
-    )
-    logger.info("Главное меню отправлено")
+    if db_user.is_registered and not db_user.is_legacy:
+        logger.info("Всё готово, показываем главное меню")
+
+        # Проверяем, не осталось ли состояние регистрации или легаси
+        current_state = await context.get_state()
+        if current_state in (Registration.waiting_for_iiko_registration, LegacyUpgrade.waiting_for_iiko_registration):
+            logger.warning(
+                f"У зарегистрированного пользователя {user_id} обнаружено состояние {current_state}, "
+                "которое должно было быть очищено. Принудительно сбрасываем."
+            )
+            await context.clear()
+
+        await show_main_menu(
+            chat_id=chat_id,
+            bot=bot,
+            user_name=db_user.first_name_input or "Гость"
+        )
+        logger.info("Главное меню отправлено")
 
 
 @router.message_created(Command('start'))
